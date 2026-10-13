@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CueCard</title>
+<style>
+  :root {
+    --bg: rgba(12, 14, 18, 0.92);
+    --panel: rgba(20, 24, 30, 0.95);
+    --border: #262c33;
+    --text: #e6e9ee;
+    --muted: #7a8494;
+    --accent: #7aa2ff;
+    --ok: #5fd48a;
+    --warn: #ffb454;
+    --err: #ff6b6b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: transparent; color: var(--text); font: 13px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; user-select: none; }
+  body { display: flex; flex-direction: column; height: 100vh; border-radius: 14px; overflow: hidden; background: var(--bg); backdrop-filter: blur(18px) saturate(1.4); border: 1px solid rgba(255,255,255,0.08); }
+
+  /* --- Title bar (draggable) --- */
+  .titlebar {
+    display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+    -webkit-app-region: drag; cursor: grab;
+  }
+  .titlebar .logo { font-weight: 700; font-size: 14px; letter-spacing: 0.3px; }
+  .titlebar .spacer { flex: 1; }
+  .titlebar button { -webkit-app-region: no-drag; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; padding: 2px 6px; border-radius: 4px; }
+  .titlebar button:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+
+  /* --- Panels --- */
+  .content { flex: 1; display: flex; flex-direction: column; gap: 8px; padding: 0 10px 10px; overflow: hidden; min-height: 0; }
+  .config-panel { display: none; flex-direction: column; gap: 8px; padding: 10px; background: var(--panel); border-radius: 10px; max-height: 360px; overflow-y: auto; }
+  .config-panel.open { display: flex; }
+  label { font-size: 11px; color: var(--muted); display: block; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
+  input, textarea, select {
+    width: 100%; background: rgba(0,0,0,0.3); color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 8px; font: inherit; outline: none;
+  }
+  textarea { resize: vertical; min-height: 50px; font-size: 12px; }
+  input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+  .row { display: flex; gap: 6px; }
+  .row > * { flex: 1; }
+
+  /* --- Status + controls --- */
+  .toolbar { display: flex; gap: 6px; align-items: center; padding: 4px 0; flex-shrink: 0; }
+  .btn {
+    padding: 6px 12px; border: 1px solid var(--border); border-radius: 8px;
+    background: rgba(255,255,255,0.05); color: var(--text); font: inherit; font-weight: 600;
+    cursor: pointer; font-size: 12px;
+  }
+  .btn:hover { background: rgba(255,255,255,0.1); }
+  .btn.primary { background: var(--accent); color: #0b1020; border-color: var(--accent); }
+  .btn.danger { background: var(--err); color: #fff; border-color: var(--err); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .spacer { flex: 1; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px;
+    border-radius: 999px; font-size: 11px; font-weight: 600;
+    background: rgba(0,0,0,0.3); color: var(--muted); border: 1px solid var(--border);
+  }
+  .badge.live { color: var(--ok); border-color: rgba(95,212,138,0.3); }
+  .badge.live::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--ok); animation: pulse 1.2s infinite; }
+  .badge.thinking { color: var(--warn); border-color: rgba(255,180,84,0.3); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* --- Answer area --- */
+  .answer-box { flex: 1; overflow-y: auto; min-height: 0; padding: 10px; background: var(--panel); border-radius: 10px; }
+  .answer-box h3 { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .answer {
+    white-space: pre-wrap; font-size: 14px; line-height: 1.7; color: var(--text);
+    user-select: text;
+  }
+  .answer code { background: rgba(0,0,0,0.4); padding: 1px 5px; border-radius: 4px; font-size: 12px; font-family: "SF Mono", Menlo, Consolas, monospace; }
+  .answer pre { background: rgba(0,0,0,0.4); padding: 10px; border-radius: 6px; overflow-x: auto; margin: 6px 0; }
+  .answer pre code { background: none; padding: 0; }
+  .placeholder { color: var(--muted); font-style: italic; font-size: 13px; }
+
+  /* --- Transcript --- */
+  .transcript-box { max-height: 80px; overflow-y: auto; padding: 8px 10px; background: var(--panel); border-radius: 10px; font-size: 11px; color: var(--muted); white-space: pre-wrap; flex-shrink: 0; }
+
+  /* --- Shortcuts hint --- */
+  .shortcuts { font-size: 10px; color: var(--muted); text-align: center; padding: 4px; flex-shrink: 0; }
+  kbd { background: rgba(255,255,255,0.08); padding: 1px 5px; border-radius: 3px; font-family: inherit; }
+
+  /* Scrollbars */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<div class="titlebar">
+  <span class="logo">CueCard</span>
+  <span class="spacer"></span>
+  <button id="settingsBtn" title="Settings">⚙</button>
+  <button id="minBtn" title="Minimize">−</button>
+  <button id="closeBtn" title="Quit">×</button>
+</div>
+
+<div class="content">
+  <!-- Settings panel (collapsible) -->
+  <div id="configPanel" class="config-panel open">
+    <div>
+      <label>Provider</label>
+      <select id="provider">
+        <option value="gemini">Gemini (free)</option>
+        <option value="groq">Groq (free, fastest)</option>
+        <option value="anthropic">Anthropic (pay-per-use)</option>
+        <option value="openai">OpenAI (pay-per-use)</option>
+      </select>
+    </div>
+    <div>
+      <label>API Key</label>
+      <input id="apiKey" type="password" placeholder="Paste your API key..." autocomplete="off" />
+      <div style="font-size:10px;color:var(--muted);margin-top:2px">
+        Free keys: <a href="https://aistudio.google.com/apikey" style="color:var(--accent)" target="_blank">Gemini</a> · <a href="https://console.groq.com" style="color:var(--accent)" target="_blank">Groq</a>
+      </div>
+    </div>
+    <div>
+      <label>Model</label>
+      <select id="model"></select>
+    </div>
+    <div class="row">
+      <div>
+        <label>Mode</label>
+        <select id="mode">
+          <option value="interview">Interview</option>
+          <option value="coding">Coding</option>
+          <option value="meeting">Meeting</option>
+          <option value="custom">Custom</option>
+        </select>
+      </div>
+      <div>
+        <label>Chunk (sec)</label>
+        <input id="chunkSec" type="number" min="3" max="30" value="5" />
+      </div>
+    </div>
+    <div>
+      <label>Your context (résumé, JD, notes)</label>
+      <textarea id="context" placeholder="Paste résumé, job description, prep notes..."></textarea>
+    </div>
+    <div>
+      <label>Instructions</label>
+      <textarea id="instructions" rows="2" placeholder="e.g. Answer in Python. Keep under 80 words."></textarea>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="toolbar">
+    <button id="startBtn" class="btn primary">▶ Start</button>
+    <button id="stopBtn" class="btn danger" disabled>■ Stop</button>
+    <button id="answerBtn" class="btn" disabled>⚡ Answer</button>
+    <span class="spacer"></span>
+    <span id="status" class="badge">idle</span>
+  </div>
+
+  <!-- Answer display -->
+  <div class="answer-box">
+    <h3>Answer</h3>
+    <div id="answer" class="answer"><span class="placeholder">Start a capture to see answers here...</span></div>
+  </div>
+
+  <!-- Transcript -->
+  <div id="transcriptBox" class="transcript-box">—</div>
+
+  <!-- Shortcuts -->
+  <div class="shortcuts">
+    <kbd>⌘⇧H</kbd> hide/show &nbsp; <kbd>⌘⇧A</kbd> answer now &nbsp; <kbd>⌘⇧S</kbd> start/stop
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const MODELS = {
+  gemini: [
+    { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash (fast, free)" },
+    { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro (smart, free)" },
+  ],
+  groq: [
+    { id: "llama-3.3-70b-versatile", name: "Llama 3.3 70B (fast)" },
+    { id: "llama-3.1-8b-instant", name: "Llama 3.1 8B (ultra-fast)" },
+    { id: "mixtral-8x7b-32768", name: "Mixtral 8x7B" },
+  ],
+  anthropic: [
+    { id: "claude-sonnet-4-5-20250514", name: "Claude Sonnet 4.5" },
+    { id: "claude-haiku-3-5-20241022", name: "Claude Haiku 3.5 (cheaper)" },
+  ],
+  openai: [
+    { id: "gpt-4.1-mini", name: "GPT-4.1 Mini (fast)" },
+    { id: "gpt-4.1", name: "GPT-4.1" },
+    { id: "gpt-4o", name: "GPT-4o" },
+  ],
+};
+
+const PROMPTS = {
+  interview: `You are a senior staff engineer with 12 years of FAANG experience. You're coaching someone in a live interview. When you hear a question:
+1. Give the DIRECT answer first (1-2 sentences)
+2. Follow with 2-3 bullet points of supporting detail
+3. If it's behavioral, use STAR format (Situation, Task, Action, Result) from the user's context
+4. Under 120 words. No hedging. No "it depends" without picking a side.
+If no question was asked, output one line summarizing what was said.`,
+
+  coding: `You are a principal engineer coaching someone through a live coding interview. When you hear a problem:
+1. State the approach in ONE line
+2. Give the solution in clean, commented code
+3. State time & space complexity
+4. If they're stuck, give the next hint only
+Use the language from the user's instructions (default: Python). Under 200 words.`,
+
+  meeting: `You are a meeting copilot. For each audio chunk:
+- Summarize in 1-2 lines
+- Flag any: ACTION ITEM, DECISION, QUESTION, or RISK
+- Under 80 words. Be terse.`,
+
+  custom: `Follow the user's custom instructions below. Be concise and direct.`,
+};
+
+// --- Elements ---
+const providerEl = $("#provider"), apiKeyEl = $("#apiKey"), modelEl = $("#model");
+const modeEl = $("#mode"), chunkEl = $("#chunkSec"), ctxEl = $("#context"), instrEl = $("#instructions");
+const startBtn = $("#startBtn"), stopBtn = $("#stopBtn"), answerBtn = $("#answerBtn");
+const statusEl = $("#status"), answerEl = $("#answer"), transcriptEl = $("#transcriptBox");
+const configPanel = $("#configPanel");
+
+// --- Persist settings ---
+const KEYS = ["provider", "apiKey", "mode", "chunkSec", "context", "instructions"];
+const els = { provider: providerEl, apiKey: apiKeyEl, mode: modeEl, chunkSec: chunkEl, context: ctxEl, instructions: instrEl };
+for (const k of KEYS) {
+  try { const v = localStorage.getItem("cc." + k); if (v !== null) els[k].value = v; } catch {}
+  els[k].addEventListener("input", () => { try { localStorage.setItem("cc." + k, els[k].value); } catch {} });
+}
+try { const m = localStorage.getItem("cc.model_id"); if (m) setTimeout(() => { modelEl.value = m; }, 50); } catch {}
+
+function updateModels() {
+  const p = providerEl.value;
+  modelEl.innerHTML = "";
+  for (const m of MODELS[p] || []) {
+    const o = document.createElement("option");
+    o.value = m.id; o.textContent = m.name;
+    modelEl.appendChild(o);
+  }
+  try { const saved = localStorage.getItem("cc.model_id"); if (saved) modelEl.value = saved; } catch {}
+}
+providerEl.addEventListener("change", updateModels);
+modelEl.addEventListener("change", () => { try { localStorage.setItem("cc.model_id", modelEl.value); } catch {} });
+updateModels();
+
+// --- Window controls ---
+$("#closeBtn").onclick = () => window.cuecard?.close?.() || window.close();
+$("#minBtn").onclick = () => window.cuecard?.minimize?.();
+$("#settingsBtn").onclick = () => configPanel.classList.toggle("open");
+
+// --- State ---
+let stream = null, recorder = null, currentChunks = [], loopTimer = null;
+let transcriptHistory = [];
+let isCapturing = false;
+
+function setStatus(text, cls = "") {
+  statusEl.textContent = text;
+  statusEl.className = "badge " + cls;
+}
+
+// --- API call layer ---
+async function callLLM(provider, apiKey, model, systemPrompt, userContent) {
+  if (provider === "gemini") return callGemini(apiKey, model, systemPrompt, userContent);
+  if (provider === "groq") return callOpenAICompat("https://api.groq.com/openai/v1/chat/completions", apiKey, model, systemPrompt, userContent);
+  if (provider === "openai") return callOpenAICompat("https://api.openai.com/v1/chat/completions", apiKey, model, systemPrompt, userContent);
+  if (provider === "anthropic") return callAnthropic(apiKey, model, systemPrompt, userContent);
+}
+
+async function callGemini(apiKey, model, systemPrompt, { text, audioB64, mimeType }) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${encodeURIComponent(apiKey)}`;
+  const parts = [{ text }];
+  if (audioB64) parts.push({ inline_data: { mime_type: mimeType, data: audioB64 } });
+  const body = {
+    system_instruction: { parts: [{ text: systemPrompt }] },
+    contents: [{ role: "user", parts }],
+    generationConfig: { temperature: 0.3, maxOutputTokens: 600 },
+  };
+  const resp = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  if (!resp.ok) throw new Error(`Gemini ${resp.status}: ${await resp.text()}`);
+  return streamSSE(resp, json => json.candidates?.[0]?.content?.parts?.map(p => p.text).join("") || "");
+}
+
+async function callOpenAICompat(url, apiKey, model, systemPrompt, { text }) {
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model, stream: true, temperature: 0.3, max_tokens: 600,
+      messages: [{ role: "system", content: systemPrompt }, { role: "user", content: text }],
+    }),
+  });
+  if (!resp.ok) throw new Error(`API ${resp.status}: ${await resp.text()}`);
+  return streamSSE(resp, json => json.choices?.[0]?.delta?.content || "");
+}
+
+async function callAnthropic(apiKey, model, systemPrompt, { text }) {
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true",
+    },
+    body: JSON.stringify({
+      model, stream: true, max_tokens: 600, temperature: 0.3,
+      system: systemPrompt,
+      messages: [{ role: "user", content: text }],
+    }),
+  });
+  if (!resp.ok) throw new Error(`Anthropic ${resp.status}: ${await resp.text()}`);
+  return streamSSE(resp, json => {
+    if (json.type === "content_block_delta") return json.delta?.text || "";
+    return "";
+  });
+}
+
+async function streamSSE(resp, extract) {
+  const reader = resp.body.getReader();
+  const dec = new TextDecoder();
+  let buf = "", full = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    const lines = buf.split("\n"); buf = lines.pop();
+    for (const line of lines) {
+      if (!line.startsWith("data:")) continue;
+      const payload = line.slice(5).trim();
+      if (!payload || payload === "[DONE]") continue;
+      try {
+        const json = JSON.parse(payload);
+        const chunk = extract(json);
+        if (chunk) { full += chunk; answerEl.textContent = full; answerEl.scrollTop = answerEl.scrollHeight; }
+      } catch {}
+    }
+  }
+  return full;
+}
+
+// --- Transcription: Gemini gets audio directly, others need text via Whisper/Gemini ---
+async function transcribeAudio(audioB64, mimeType) {
+  const gKey = apiKeyEl.value.trim();
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(gKey)}`;
+  const body = {
+    contents: [{ role: "user", parts: [
+      { text: "Transcribe this audio exactly. Output ONLY the transcription, nothing else. If silence, output [silence]." },
+      { inline_data: { mime_type: mimeType, data: audioB64 } },
+    ]}],
+    generationConfig: { temperature: 0, maxOutputTokens: 400 },
+  };
+  const resp = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  if (!resp.ok) return "[transcription failed]";
+  const json = await resp.json();
+  return json.candidates?.[0]?.content?.parts?.[0]?.text || "[empty]";
+}
+
+// --- Main chunk handler ---
+async function sendChunk(blob) {
+  const apiKey = apiKeyEl.value.trim();
+  if (!apiKey) { answerEl.textContent = "⚠️ Set your API key in settings."; return; }
+  const provider = providerEl.value;
+  const model = modelEl.value;
+  const mode = modeEl.value;
+
+  setStatus("thinking…", "thinking");
+  answerEl.innerHTML = "";
+
+  const audioB64 = await blobToBase64(blob);
+  const mimeType = blob.type.split(";")[0] || "audio/webm";
+
+  const ctx = ctxEl.value.trim();
+  const instr = instrEl.value.trim();
+  const recent = transcriptHistory.slice(-5).join("\n");
+
+  let systemPrompt = PROMPTS[mode] || PROMPTS.custom;
+  if (ctx) systemPrompt += `\n\n[User's context/résumé]\n${ctx}`;
+  if (instr) systemPrompt += `\n\n[Custom instructions]\n${instr}`;
+
+  try {
+    if (provider === "gemini") {
+      let header = "";
+      if (recent) header += `[Recent transcript]\n${recent}\n\n`;
+      header += "[New audio chunk — listen, then respond per your instructions.]";
+      await callLLM(provider, apiKey, model, systemPrompt, { text: header, audioB64, mimeType });
+    } else {
+      // Non-Gemini: transcribe first with Gemini, then send text to the chosen LLM
+      const transcript = await transcribeAudio(audioB64, mimeType);
+      if (transcript === "[silence]" || transcript === "[empty]") {
+        answerEl.innerHTML = '<span class="placeholder">Silence detected — waiting for speech...</span>';
+        setStatus(isCapturing ? "listening" : "idle", isCapturing ? "live" : "");
+        return;
+      }
+      transcriptHistory.push(transcript);
+      transcriptEl.textContent = transcriptHistory.slice(-8).join("\n");
+
+      let userText = "";
+      if (recent) userText += `[Recent conversation]\n${recent}\n\n`;
+      userText += `[Latest audio — transcribed]\n${transcript}\n\n`;
+      userText += "Respond now.";
+      await callLLM(provider, apiKey, model, systemPrompt, { text: userText });
+    }
+  } catch (e) {
+    answerEl.textContent = "Error: " + e.message;
+  }
+  setStatus(isCapturing ? "listening" : "idle", isCapturing ? "live" : "");
+}
+
+function blobToBase64(blob) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(String(r.result).split(",")[1]);
+    r.onerror = rej;
+    r.readAsDataURL(blob);
+  });
+}
+
+// --- Audio capture ---
+function startRecorderLoop(audioStream) {
+  const mime = MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus" : "audio/webm";
+  const chunkMs = Math.max(3, Math.min(30, Number(chunkEl.value) || 5)) * 1000;
+
+  function makeRecorder() {
+    const rec = new MediaRecorder(audioStream, { mimeType: mime, audioBitsPerSecond: 32000 });
+    rec.ondataavailable = e => { if (e.data?.size > 0) currentChunks.push(e.data); };
+    rec.onstop = () => {
+      if (!currentChunks.length) return;
+      const blob = new Blob(currentChunks, { type: mime });
+      currentChunks = [];
+      sendChunk(blob);
+    };
+    return rec;
+  }
+
+  recorder = makeRecorder();
+  recorder.start();
+
+  loopTimer = setInterval(() => {
+    if (recorder?.state === "recording") {
+      recorder.stop();
+      recorder = makeRecorder();
+      recorder.start();
+    }
+  }, chunkMs);
+}
+
+async function startCapture() {
+  try {
+    stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+  } catch (e) {
+    alert("Capture cancelled: " + e.message);
+    return;
+  }
+  const audioTracks = stream.getAudioTracks();
+  if (!audioTracks.length) {
+    alert("No audio captured. Tick 'Share tab audio' or 'Share system audio'.");
+    stream.getTracks().forEach(t => t.stop()); stream = null;
+    return;
+  }
+  stream.getVideoTracks().forEach(t => t.stop());
+  const audioOnly = new MediaStream(audioTracks);
+
+  startRecorderLoop(audioOnly);
+  audioTracks[0].addEventListener("ended", stopCapture);
+
+  isCapturing = true;
+  startBtn.disabled = true; stopBtn.disabled = false; answerBtn.disabled = false;
+  configPanel.classList.remove("open");
+  setStatus("listening", "live");
+}
+
+function stopCapture() {
+  if (loopTimer) { clearInterval(loopTimer); loopTimer = null; }
+  if (recorder?.state === "recording") try { recorder.stop(); } catch {}
+  recorder = null;
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+  isCapturing = false;
+  startBtn.disabled = false; stopBtn.disabled = true; answerBtn.disabled = true;
+  setStatus("idle", "");
+}
+
+function forceAnswer() {
+  if (recorder?.state === "recording") {
+    recorder.stop();
+    if (stream) {
+      const audioOnly = new MediaStream(stream.getAudioTracks());
+      startRecorderLoop(audioOnly);
+    }
+  }
+}
+
+// --- Button handlers ---
+startBtn.addEventListener("click", startCapture);
+stopBtn.addEventListener("click", stopCapture);
+answerBtn.addEventListener("click", forceAnswer);
+
+// --- Electron hotkeys ---
+if (window.cuecard) {
+  window.cuecard.onForceAnswer(() => forceAnswer());
+  window.cuecard.onToggleCapture(() => { isCapturing ? stopCapture() : startCapture(); });
+}
+</script>
+</body>
+</html>

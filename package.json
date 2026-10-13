@@ -1,0 +1,18 @@
+{
+  "name": "cuecard",
+  "version": "1.0.0",
+  "description": "Real-time AI interview copilot — stealth overlay, sub-second answers",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev"
+  },
+  "author": "MohanSai9257",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^33.0.0"
+  },
+  "allowScripts": {
+    "electron@33.4.11": true
+  }
+}
