@@ -20,6 +20,7 @@ const STATIC_FILES = {
   "/styles.css": ["styles.css", "text/css; charset=utf-8"],
   "/renderer.js": ["renderer.js", "text/javascript; charset=utf-8"],
   "/live-transcription.js": ["live-transcription.js", "text/javascript; charset=utf-8"],
+  "/mammoth.browser.min.js": ["node_modules/mammoth/mammoth.browser.min.js", "text/javascript; charset=utf-8"],
 };
 
 function send(channel, payload) {

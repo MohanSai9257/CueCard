@@ -28,6 +28,7 @@ const answerEl = $("#answer");
 const questionEl = $("#question");
 const statusEl = $("#status");
 const isOverlay = new URLSearchParams(location.search).has("overlay");
+const isHosted = !["127.0.0.1", "localhost"].includes(location.hostname);
 
 let resume = null;
 let config = null;
@@ -126,6 +127,31 @@ async function readBrowserResume(event) {
   button.disabled = true;
   status.textContent = "Reading file…";
   try {
+    if (isHosted) {
+      const buffer = await file.arrayBuffer();
+      let text = "";
+      if (/\.docx$/i.test(file.name)) {
+        if (!window.mammoth) throw new Error("The Word document reader could not load.");
+        text = (await window.mammoth.extractRawText({ arrayBuffer: buffer })).value;
+      } else if (/\.pdf$/i.test(file.name)) {
+        const pdfjs = await import("./pdf.mjs");
+        pdfjs.GlobalWorkerOptions.workerSrc = "./pdf.worker.mjs";
+        const pdf = await pdfjs.getDocument({ data: new Uint8Array(buffer) }).promise;
+        const pages = [];
+        for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
+          const page = await pdf.getPage(pageNumber);
+          const content = await page.getTextContent();
+          pages.push(content.items.map(item => item.str).join(" "));
+        }
+        text = pages.join("\n");
+      } else throw new Error("Only PDF and DOCX résumés are supported.");
+      text = text.replace(/\u0000/g, "").trim().slice(0, 100000);
+      if (!text) throw new Error("No selectable text was found. Use a text-searchable PDF or DOCX file.");
+      resume = { name: file.name, text };
+      status.textContent = `${file.name} · ${text.length.toLocaleString()} characters ready`;
+      button.textContent = "Replace";
+      return;
+    }
     const response = await fetch("/api/resume", {
       method: "POST",
       headers: { "Content-Type": "application/octet-stream", "X-File-Name": encodeURIComponent(file.name) },
@@ -174,6 +200,10 @@ async function beginInterview(event) {
   if (!sessionConfig) return;
 
   if (!window.cuecard) {
+    if (isHosted) {
+      await startOverlaySession({ ...sessionConfig, sessionId: Date.now() });
+      return;
+    }
     const submit = $(".start-interview");
     submit.disabled = true;
     submit.textContent = "Opening floating assistant…";
