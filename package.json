@@ -1,18 +1,29 @@
 {
   "name": "cuecard",
   "version": "1.0.0",
-  "description": "Real-time AI interview copilot — stealth overlay, sub-second answers",
+  "description": "Responsible live preparation assistant with context-grounded speaking cues",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "dev": "electron . --dev"
+    "dev": "electron . --dev",
+    "check": "node --check main.js && node --check preload.js && node --check renderer.js"
   },
   "author": "MohanSai9257",
   "license": "MIT",
   "devDependencies": {
-    "electron": "^33.0.0"
+    "electron": "^44.7.2"
   },
   "allowScripts": {
     "electron@33.4.11": true
+  },
+  "dependencies": {
+    "mammoth": "^1.11.0",
+    "pdf-parse": "^1.1.1"
+  },
+  "build": {
+    "extendInfo": {
+      "NSMicrophoneUsageDescription": "CueCard uses the microphone when the user enables My Mic.",
+      "NSAudioCaptureUsageDescription": "CueCard captures system audio when the user enables System Audio."
+    }
   }
 }
