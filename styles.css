@@ -21,7 +21,6 @@ body.overlay-shell .setup-view { display: none !important; }
 body.overlay-shell .window-bar { height: 64px; }
 body.overlay-shell main { height: calc(100vh - 64px); }
 body.overlay-shell .interview-view:not(.hidden) { display: grid; }
-body.overlay-shell .interview-view.hidden { display: grid !important; }
 button, input, textarea, select { font: inherit; }
 button { color: inherit; }
 

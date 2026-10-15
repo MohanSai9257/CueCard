@@ -1,4 +1,6 @@
-const $ = selector => document.querySelector(selector);
+let floatingWindow = null;
+let hostedChannel = null;
+const $ = selector => floatingWindow?.document.querySelector(selector) || document.querySelector(selector);
 
 const MODELS = {
   gemini: [
@@ -29,6 +31,7 @@ const questionEl = $("#question");
 const statusEl = $("#status");
 const isOverlay = new URLSearchParams(location.search).has("overlay");
 const isHosted = !["127.0.0.1", "localhost"].includes(location.hostname);
+const overlayChannelId = new URLSearchParams(location.search).get("channel");
 
 let resume = null;
 let config = null;
@@ -201,7 +204,11 @@ async function beginInterview(event) {
 
   if (!window.cuecard) {
     if (isHosted) {
-      await startOverlaySession({ ...sessionConfig, sessionId: Date.now() });
+      try {
+        await openHostedOverlay({ ...sessionConfig, sessionId: Date.now() });
+      } catch (error) {
+        $("#formError").textContent = `Could not open the interview window: ${error.message}`;
+      }
       return;
     }
     const submit = $(".start-interview");
@@ -229,6 +236,48 @@ async function beginInterview(event) {
   await startOverlaySession(sessionConfig);
 }
 
+async function openHostedOverlay(sessionConfig) {
+  if ("documentPictureInPicture" in window) {
+    if (!floatingWindow || floatingWindow.closed) {
+      // Request the window while the Start button's user gesture is still active.
+      const nextWindow = await documentPictureInPicture.requestWindow({ width: 520, height: 760 });
+      const stylesheet = nextWindow.document.createElement("link");
+      stylesheet.rel = "stylesheet";
+      stylesheet.href = new URL("styles.css", location.href).href;
+      nextWindow.document.head.append(stylesheet);
+      nextWindow.document.body.className = "overlay-shell";
+      nextWindow.document.body.append(document.querySelector(".window-bar"));
+      const main = nextWindow.document.createElement("main");
+      main.append(interviewView);
+      nextWindow.document.body.append(main);
+      floatingWindow = nextWindow;
+      nextWindow.addEventListener("pagehide", () => {
+        stopInterview(false);
+        document.body.prepend(nextWindow.document.querySelector(".window-bar"));
+        document.querySelector("main").append(interviewView);
+        floatingWindow = null;
+        interviewView.classList.add("hidden");
+        setupView.classList.remove("hidden");
+      }, { once: true });
+    }
+    await startOverlaySession(sessionConfig);
+    return;
+  }
+
+  if (!hostedChannel) {
+    const channelId = crypto.randomUUID();
+    const channel = new BroadcastChannel(`cuecard-${channelId}`);
+    hostedChannel = { id: channelId, channel, session: sessionConfig };
+    channel.onmessage = event => {
+      if (event.data?.type === "ready") channel.postMessage({ type: "start", session: hostedChannel.session });
+    };
+  } else hostedChannel.session = sessionConfig;
+  const popup = window.open(`/?overlay=1&channel=${encodeURIComponent(hostedChannel.id)}`, "cuecard-interview", "popup,width=520,height=760,resizable=yes");
+  if (!popup) throw new Error("Chrome blocked the popup. Allow popups for this site and try again.");
+  popup.focus();
+  hostedChannel.channel.postMessage({ type: "start", session: sessionConfig });
+}
+
 async function startOverlaySession(sessionConfig) {
   if (!sessionConfig || sessionConfig.sessionId === activeSessionId) return;
   activeSessionId = sessionConfig.sessionId;
@@ -236,7 +285,7 @@ async function startOverlaySession(sessionConfig) {
   config = sessionConfig;
   if (config.provider === "gemini" && config.model.startsWith("gemini-2.5-")) config.model = "gemini-3.8-flash";
 
-  setupView.classList.add("hidden");
+  if (!floatingWindow) setupView.classList.add("hidden");
   interviewView.classList.remove("hidden");
   setStatus("Choose an audio source");
 
@@ -620,10 +669,10 @@ $("#micAudioToggle").addEventListener("click", toggleMicAudio);
 $("#answerNow").addEventListener("click", forceAnswer);
 $("#previousAnswer").addEventListener("click", () => { if (historyIndex > 0) { historyIndex--; renderHistory(); } });
 $("#nextAnswer").addEventListener("click", () => { if (historyIndex < history.length - 1) { historyIndex++; renderHistory(); } });
-$("#hideBtn").addEventListener("click", () => window.cuecard ? window.cuecard.minimize() : window.scrollTo({ top: 0, behavior: "smooth" }));
-$("#closeBtn").addEventListener("click", () => window.cuecard ? window.cuecard.close() : window.close());
-$("#zoomIn").addEventListener("click", () => { zoom = Math.min(1.35, zoom + .1); document.documentElement.style.zoom = zoom; window.cuecard?.resize(30); });
-$("#zoomOut").addEventListener("click", () => { zoom = Math.max(.8, zoom - .1); document.documentElement.style.zoom = zoom; window.cuecard?.resize(-30); });
+$("#hideBtn").addEventListener("click", () => window.cuecard ? window.cuecard.minimize() : floatingWindow ? floatingWindow.close() : window.close());
+$("#closeBtn").addEventListener("click", () => window.cuecard ? window.cuecard.close() : floatingWindow ? floatingWindow.close() : window.close());
+$("#zoomIn").addEventListener("click", () => { zoom = Math.min(1.35, zoom + .1); (floatingWindow?.document || document).documentElement.style.zoom = zoom; window.cuecard?.resize(30); });
+$("#zoomOut").addEventListener("click", () => { zoom = Math.max(.8, zoom - .1); (floatingWindow?.document || document).documentElement.style.zoom = zoom; window.cuecard?.resize(-30); });
 
 if (window.cuecard) {
   window.cuecard.onForceAnswer(forceAnswer);
@@ -637,6 +686,14 @@ if (window.cuecard) {
 }
 updateModels();
 if (isOverlay) {
+  document.body.classList.add("overlay-shell");
   setupView.classList.add("hidden");
   interviewView.classList.add("hidden");
+  if (isHosted && overlayChannelId) {
+    const channel = new BroadcastChannel(`cuecard-${overlayChannelId}`);
+    channel.onmessage = event => {
+      if (event.data?.type === "start") startOverlaySession(event.data.session);
+    };
+    channel.postMessage({ type: "ready" });
+  }
 }
