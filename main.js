@@ -12,6 +12,7 @@ let win;
 let server;
 let pendingSession = null;
 let sessionSequence = 0;
+const HOSTED_ORIGIN = "https://cuecard-interview-assistant.groovy-ghost-2604.chatgpt.site";
 
 const STATIC_FILES = {
   "/": ["index.html", "text/html; charset=utf-8"],
@@ -65,6 +66,24 @@ function json(response, status, payload) {
 async function handleRequest(request, response) {
   try {
     const url = new URL(request.url, "http://127.0.0.1");
+    const origin = request.headers.origin;
+    if (origin && origin !== HOSTED_ORIGIN && origin !== "http://127.0.0.1:32145") {
+      return json(response, 403, { error: "This website is not allowed to control CueCard." });
+    }
+    if (origin === HOSTED_ORIGIN) {
+      response.setHeader("Access-Control-Allow-Origin", HOSTED_ORIGIN);
+      response.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+      response.setHeader("Access-Control-Allow-Headers", "Content-Type, X-File-Name");
+      response.setHeader("Access-Control-Allow-Private-Network", "true");
+      response.setHeader("Vary", "Origin");
+    }
+    if (request.method === "OPTIONS") {
+      response.writeHead(204).end();
+      return;
+    }
+    if (request.method === "GET" && url.pathname === "/api/health") {
+      return json(response, 200, { ready: true, desktopCapture: true });
+    }
     if (request.method === "POST" && url.pathname === "/api/resume") {
       const rawName = request.headers["x-file-name"] || "resume";
       const fileName = decodeURIComponent(String(rawName));

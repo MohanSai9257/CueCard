@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' wss://api.deepgram.com https://generativelanguage.googleapis.com https://api.groq.com https://api.openai.com; style-src 'self'; script-src 'self'; img-src 'self' data:">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' http://127.0.0.1:32145 wss://api.deepgram.com https://generativelanguage.googleapis.com https://api.groq.com https://api.openai.com; style-src 'self'; script-src 'self'; img-src 'self' data:">
   <title>CueCard</title>
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -87,6 +87,16 @@
         </label>
 
         <label class="policy-check"><input id="responsibleUse" type="checkbox" required><span>I will follow the interviewer's or meeting host's policies and use CueCard only where assistance is permitted.</span></label>
+
+        <div id="captureModeField" class="capture-mode hidden">
+          <label>Call audio capture
+            <select id="captureMode">
+              <option value="desktop">CueCard desktop app — direct system audio</option>
+              <option value="browser">Chrome only — select a tab or screen</option>
+            </select>
+          </label>
+          <span id="companionStatus">Checking for the CueCard desktop app…</span>
+        </div>
 
         <div id="formError" class="form-error" role="alert"></div>
         <button type="submit" class="primary start-interview">Start AI interview <span>→</span></button>

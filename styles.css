@@ -70,6 +70,8 @@ input:focus, textarea:focus, select:focus { border-color: rgba(130,167,255,.7); 
 .form-error { min-height: 0; color: var(--danger); font-size: 11px; }
 .form-error:empty { display: none; }
 .privacy-note { margin: -4px 0 0; color: #687385; font-size: 9px; line-height: 1.5; text-align: center; }
+.capture-mode { display: flex; flex-direction: column; gap: 6px; padding: 10px 11px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel-2); }
+.capture-mode > span { color: var(--muted); font-size: 10px; line-height: 1.4; }
 .policy-check { flex-direction: row; align-items: flex-start; gap: 9px; padding: 10px 11px; border: 1px solid var(--line); border-radius: 9px; color: var(--muted); background: rgba(255,255,255,.025); font-weight: 500; line-height: 1.45; }
 .policy-check input { width: 14px; height: 14px; margin: 1px 0 0; padding: 0; accent-color: var(--accent); }
 kbd { padding: 1px 4px; border: 1px solid var(--line); border-radius: 4px; background: rgba(255,255,255,.05); }

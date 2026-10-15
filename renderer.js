@@ -32,6 +32,7 @@ const statusEl = $("#status");
 const isOverlay = new URLSearchParams(location.search).has("overlay");
 const isHosted = !["127.0.0.1", "localhost"].includes(location.hostname);
 const overlayChannelId = new URLSearchParams(location.search).get("channel");
+const LOCAL_COMPANION = "http://127.0.0.1:32145";
 
 let resume = null;
 let config = null;
@@ -59,6 +60,21 @@ let retryAfter = 0;
 let retryRecording = null;
 let cooldownTimer = null;
 let liveTranscription = null;
+
+async function checkDesktopCompanion() {
+  if (!isHosted || isOverlay) return;
+  const status = $("#companionStatus");
+  try {
+    const response = await fetch(`${LOCAL_COMPANION}/api/health`, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(2500),
+    });
+    if (!response.ok || !(await response.json()).desktopCapture) throw new Error("Not ready");
+    status.textContent = "Desktop app connected. System audio will use its direct capture path.";
+  } catch {
+    status.textContent = "Desktop app not connected. Start CueCard locally, then click Start; Chrome-only mode requires its audio-sharing picker.";
+  }
+}
 
 function updateModels() {
   modelEl.replaceChildren(...MODELS[providerEl.value].map(([value, label]) => {
@@ -205,9 +221,21 @@ async function beginInterview(event) {
   if (!window.cuecard) {
     if (isHosted) {
       try {
-        await openHostedOverlay({ ...sessionConfig, sessionId: Date.now() });
+        if ($("#captureMode").value === "desktop") {
+          const response = await fetch(`${LOCAL_COMPANION}/api/start`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(sessionConfig),
+            signal: AbortSignal.timeout(5000),
+          });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error || "The desktop app could not start.");
+          $("#formError").textContent = "The desktop CueCard window is active. Audio is captured by the local app.";
+        } else await openHostedOverlay({ ...sessionConfig, sessionId: Date.now() });
       } catch (error) {
-        $("#formError").textContent = `Could not open the interview window: ${error.message}`;
+        $("#formError").textContent = $("#captureMode").value === "desktop"
+          ? `Desktop CueCard is unavailable: ${error.message}. Start the local app and try again, or choose Chrome-only capture.`
+          : `Could not open the interview window: ${error.message}`;
       }
       return;
     }
@@ -310,7 +338,6 @@ function supportedMimeType() {
 
 async function startVoiceActivityCapture(audioStreams) {
   audioContext = new AudioContext();
-  await audioContext.resume();
   analyser = audioContext.createAnalyser();
   analyser.fftSize = 1024;
   mixerDestination = audioContext.createMediaStreamDestination();
@@ -343,7 +370,16 @@ function connectStreamToMixer(audioStream) {
 
 async function enableSystemCapture() {
   if (systemStream?.getAudioTracks().some(track => track.readyState === "live")) return systemStream;
-  const capture = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+  // The capture request must run in the clicked, focused window before any await.
+  const mediaDevices = floatingWindow?.navigator.mediaDevices || navigator.mediaDevices;
+  const capturePromise = mediaDevices.getDisplayMedia({
+    video: true,
+    audio: true,
+    systemAudio: "include",
+    windowAudio: "system",
+  });
+  await audioContext?.resume();
+  const capture = await capturePromise;
   // Keep the video track alive: stopping it can also end desktop audio.
   // Only audio tracks are connected to the recorder; video is never sent.
   if (!capture.getAudioTracks().length) {
@@ -359,7 +395,10 @@ async function enableSystemCapture() {
 
 async function enableMicCapture() {
   if (micStream?.getAudioTracks().some(track => track.readyState === "live")) return micStream;
-  micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true }, video: false });
+  const mediaDevices = floatingWindow?.navigator.mediaDevices || navigator.mediaDevices;
+  const capturePromise = mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true }, video: false });
+  await audioContext?.resume();
+  micStream = await capturePromise;
   micStream.getAudioTracks().forEach(track => track.addEventListener("ended", updateAudioControls));
   connectStreamToMixer(micStream);
   updateAudioControls();
@@ -398,7 +437,6 @@ function toggleAudio(sourceStream) {
 
 async function toggleSystemAudio() {
   if (!config) { answerEl.textContent = "Start a session from the Chrome setup page first."; return; }
-  await audioContext?.resume();
   if (!systemStream?.getAudioTracks().some(track => track.readyState === "live")) {
     const button = $("#systemAudioToggle");
     button.disabled = true;
@@ -411,7 +449,6 @@ async function toggleSystemAudio() {
 
 async function toggleMicAudio() {
   if (!config) { answerEl.textContent = "Start a session from the Chrome setup page first."; return; }
-  await audioContext?.resume();
   if (!micStream?.getAudioTracks().some(track => track.readyState === "live")) {
     const button = $("#micAudioToggle");
     button.disabled = true;
@@ -685,6 +722,10 @@ if (window.cuecard) {
   }
 }
 updateModels();
+if (isHosted && !isOverlay) {
+  $("#captureModeField").classList.remove("hidden");
+  checkDesktopCompanion();
+}
 if (isOverlay) {
   document.body.classList.add("overlay-shell");
   setupView.classList.add("hidden");
