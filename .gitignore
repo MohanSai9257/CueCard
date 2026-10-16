@@ -2,3 +2,12 @@ node_modules/
 release/
 .DS_Store
 *.log
+.env
+.env.*
+!.env.example
+*.enc
+*.pem
+coverage/
+test-results/
+assets/system-audio-arm64
+assets/system-audio-x86_64

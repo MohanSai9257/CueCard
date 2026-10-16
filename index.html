@@ -1,128 +1,349 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' wss://api.deepgram.com https://generativelanguage.googleapis.com https://api.groq.com https://api.openai.com; style-src 'self'; script-src 'self'; img-src 'self' data:">
-  <title>CueCard</title>
-  <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-  <header class="window-bar">
-    <div class="brand"><img class="brand-mark" src="assets/icon.png" alt=""><span>CueCard</span></div>
-    <div class="audio-controls" aria-label="Audio capture controls">
-      <button id="systemAudioToggle" class="audio-control muted" type="button" title="System audio is inactive" aria-pressed="false">
-        <svg class="system-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="4" width="14" height="11" rx="1.5"></rect><path d="M7 20h5M9.5 15v5M19 8c1.5 1.4 1.5 4.6 0 6M21.5 6c2.7 2.7 2.7 7.3 0 10"></path></svg>
-        <span class="audio-label"><span class="audio-dot"></span>System Audio</span>
-      </button>
-      <span class="audio-divider"></span>
-      <button id="micAudioToggle" class="audio-control mic-control muted" type="button" title="Microphone is inactive" aria-pressed="false">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="2.5" width="8" height="13" rx="4"></rect><path d="M5 11.5a7 7 0 0 0 14 0M12 18.5V22M8.5 22h7"></path></svg>
-        <span class="audio-label"><span class="audio-dot"></span>My Mic</span>
-      </button>
-    </div>
-    <div class="window-actions">
-      <button id="settingsBtn" title="End session and return to settings" aria-label="Session settings">⚙</button>
-      <button id="zoomOut" title="Zoom out">−</button>
-      <button id="zoomIn" title="Zoom in">+</button>
-      <button id="hideBtn" title="Collapse to horse icon" aria-label="Collapse CueCard">⌄</button>
-      <button id="closeBtn" title="Quit">×</button>
-    </div>
-  </header>
-  <button id="miniRestore" class="mini-restore" type="button" title="Expand CueCard" aria-label="Expand CueCard"><img src="assets/icon.png" alt=""></button>
-
-  <main>
-    <section id="setupView" class="view setup-view">
-      <div class="intro">
-        <span class="eyebrow">LIVE PREPARATION ASSISTANT · LOCAL v1.1.2</span>
-        <h1>Prepare your session</h1>
-        <p>CueCard listens for questions and surfaces concise cues from material you provide.</p>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; connect-src 'self' wss://api.deepgram.com; style-src 'self'; script-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'"
+    />
+    <title>CueCard</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="workspace.css" />
+  </head>
+  <body>
+    <header class="window-bar">
+      <div class="brand"><img class="brand-mark" src="assets/icon.png" alt="" /><span>CueCard</span></div>
+      <div class="audio-controls" aria-label="Audio capture controls">
+        <button
+          id="systemAudioToggle"
+          class="audio-control muted"
+          type="button"
+          title="System audio is inactive"
+          aria-pressed="false"
+        >
+          <svg class="system-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="2.5" y="4" width="14" height="11" rx="1.5"></rect>
+            <path d="M7 20h5M9.5 15v5M19 8c1.5 1.4 1.5 4.6 0 6M21.5 6c2.7 2.7 2.7 7.3 0 10"></path>
+          </svg>
+          <span class="audio-label"><span class="audio-dot"></span>System Audio</span>
+        </button>
+        <span class="audio-divider"></span>
+        <button
+          id="micAudioToggle"
+          class="audio-control mic-control muted"
+          type="button"
+          title="Microphone is inactive"
+          aria-pressed="false"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="8" y="2.5" width="8" height="13" rx="4"></rect>
+            <path d="M5 11.5a7 7 0 0 0 14 0M12 18.5V22M8.5 22h7"></path>
+          </svg>
+          <span class="audio-label"><span class="audio-dot"></span>My Mic</span>
+        </button>
       </div>
+      <div class="window-actions">
+        <button id="settingsBtn" title="End session and return to settings" aria-label="Session settings">
+          ⚙
+        </button>
+        <button id="zoomOut" title="Decrease text size" aria-label="Decrease text size">−</button>
+        <button id="zoomIn" title="Increase text size" aria-label="Increase text size">+</button>
+        <button id="hideBtn" title="Collapse to horse icon" aria-label="Collapse CueCard">⌄</button>
+        <button id="closeBtn" title="Quit">×</button>
+      </div>
+    </header>
+    <button
+      id="miniRestore"
+      class="mini-restore"
+      type="button"
+      title="Expand CueCard"
+      aria-label="Expand CueCard"
+    >
+      <img src="assets/icon.png" alt="" />
+    </button>
 
-      <form id="setupForm">
-        <div class="field-grid two">
-          <label>AI provider
-            <select id="provider" required>
-              <option value="gemini">Google Gemini</option>
-              <option value="groq">Groq</option>
-              <option value="openai">OpenAI</option>
-            </select>
-          </label>
-          <label>Model
-            <select id="model" required></select>
-          </label>
-        </div>
-
-        <label>Live transcription key (Deepgram)
-          <input id="transcriptionKey" type="password" autocomplete="off" placeholder="Required for live, as-you-speak question text" required>
-          <span class="api-key-help"><a href="https://console.deepgram.com/" target="_blank" rel="noopener noreferrer">Create a Deepgram API key ↗</a> · Enabled audio is streamed to Deepgram. Usage charges may apply.</span>
-        </label>
-        <label>API key
-          <input id="apiKey" type="password" placeholder="Stored only for this session" autocomplete="off" required>
-          <span class="api-key-help">Need a key? <a id="apiKeyLink" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">Get a Gemini API key ↗</a></span>
-        </label>
-
-        <div class="field-grid two">
-          <label>Your role
-            <input id="role" placeholder="Senior Software Engineer" required>
-          </label>
-          <label>Company
-            <input id="company" placeholder="Company name" required>
-          </label>
-        </div>
-
-        <label>Job description
-          <textarea id="jobDescription" rows="5" placeholder="Paste the complete job description…" required></textarea>
-        </label>
-
-        <div class="resume-field">
-          <div>
-            <strong>Résumé</strong>
-            <span id="resumeStatus">PDF or DOCX, up to 100,000 characters</span>
+    <main>
+      <section id="setupView" class="view setup-view">
+        <aside class="sidebar">
+          <div class="desktop-drag">
+            <div class="traffic-lights">
+              <button id="desktopClose" aria-label="Quit CueCard"></button
+              ><button id="desktopMinimize" aria-label="Minimize CueCard"></button
+              ><button id="desktopMaximize" aria-label="Resize CueCard"></button>
+            </div>
           </div>
-          <button type="button" id="resumeBtn" class="secondary">Choose file</button>
+          <div class="sidebar-brand">
+            <img src="assets/icon.png" alt="CueCard horse" /><strong>CueCard</strong
+            ><button id="collapseSidebar" title="Collapse sidebar" aria-label="Collapse sidebar">«</button>
+          </div>
+          <nav aria-label="Main navigation">
+            <button class="nav-item active" data-page="create" title="Create session">
+              <span class="nav-symbol"
+                ><svg viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M12 7v10M7 12h10" /></svg></span
+              ><span>Create session</span>
+            </button>
+            <button class="nav-item" data-page="sessions" title="Call sessions">
+              <span class="nav-symbol"
+                ><svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M14 3H6a2 2 0 0 0-2 2v15h16V9zM14 3v6h6M8 13h8M8 17h6" /></svg></span
+              ><span>Call sessions</span>
+            </button>
+            <button class="nav-item" data-page="keys" title="API keys">
+              <span class="nav-symbol"
+                ><svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M14 13a6 6 0 1 0-3-3L3 18v3h4v-3h3z" />
+                  <circle cx="17" cy="6" r="1" /></svg></span
+              ><span>API keys</span>
+            </button>
+          </nav>
+          <div class="local-profile">
+            <span class="local-avatar">◉</span>
+            <div><strong>Local workspace</strong><small>Private on this device</small></div>
+            <span class="lock-mark">⌑</span>
+          </div>
+        </aside>
+        <div class="workspace-main">
+          <div class="workspace-topbar"></div>
+          <div id="workspaceNotice" class="workspace-notice hidden" role="alert"></div>
+          <section id="createPage" class="workspace-page">
+            <div class="page-intro">
+              <span class="eyebrow">CREATE SESSION</span>
+              <h1>Create AI Interview Session</h1>
+              <p>Set your role, share your experience, and get useful cues tailored to your interview.</p>
+            </div>
+            <form id="setupForm">
+              <div id="continuationBanner" class="continuation-banner hidden">
+                <div>
+                  <strong id="continuationTitle"></strong>
+                  <p id="continuationDescription"></p>
+                </div>
+                <button id="cancelContinuation" type="button">Start a new session instead</button>
+              </div>
+              <section class="config-card">
+                <div class="card-title">
+                  <span class="card-symbol">⚙</span>
+                  <div>
+                    <h2>AI Configuration</h2>
+                    <p>Choose the provider and model for your session.</p>
+                  </div>
+                </div>
+                <div class="field-grid two">
+                  <label
+                    >AI provider
+                    <select id="provider" required>
+                      <option value="gemini">Google Gemini</option>
+                      <option value="claude">Claude (Anthropic)</option>
+                      <option value="groq">Groq</option>
+                      <option value="openai">OpenAI</option>
+                    </select>
+                  </label>
+                  <label
+                    >Model
+                    <select id="model" required></select>
+                  </label>
+                </div>
+
+                <div class="credential-summary">
+                  <div>
+                    <span id="sessionKeyDot" class="credential-dot"></span
+                    ><span id="sessionKeyStatus">Checking saved credentials…</span>
+                  </div>
+                  <button id="manageSessionKeys" type="button">Manage API keys ↗</button>
+                </div>
+              </section>
+              <section class="config-card job-card">
+                <div class="card-title">
+                  <span class="card-symbol"
+                    ><svg viewBox="0 0 24 24" aria-hidden="true">
+                      <rect x="3" y="7" width="18" height="14" rx="2" />
+                      <path d="M8 7V3h8v4M3 12h18M10 12v3h4v-3" /></svg
+                  ></span>
+                  <div>
+                    <h2>Job Details</h2>
+                    <p>Give your assistant the context it needs.</p>
+                  </div>
+                </div>
+                <div class="field-grid two">
+                  <label
+                    >Your role
+                    <input id="role" placeholder="Senior Software Engineer" required />
+                  </label>
+                  <label
+                    >Company
+                    <input id="company" placeholder="Company name" required />
+                  </label>
+                </div>
+
+                <label
+                  >Job description
+                  <textarea
+                    id="jobDescription"
+                    rows="5"
+                    placeholder="Paste the complete job description…"
+                    required
+                  ></textarea>
+                </label>
+
+                <div class="field-grid two resume-instructions">
+                  <div class="resume-field">
+                    <div>
+                      <strong>Résumé</strong>
+                      <span id="resumeStatus">PDF or DOCX, up to 100,000 characters</span>
+                    </div>
+                    <button type="button" id="resumeBtn" class="secondary">Choose file</button>
+                  </div>
+
+                  <label
+                    >Answer instructions
+                    <textarea
+                      id="instructions"
+                      rows="3"
+                      placeholder="Example: Keep cues under 90 words. Use STAR for behavioral questions. Use Java for coding explanations."
+                    ></textarea>
+                  </label>
+                </div>
+                <label
+                  >Session type<select id="sessionType">
+                    <option value="interview">Interview</option>
+                    <option value="regular">Regular call</option>
+                    <option value="mock">Mock interview</option>
+                  </select></label
+                >
+
+                <label class="policy-check"
+                  ><input id="responsibleUse" type="checkbox" required /><span
+                    >I will follow the interviewer's or meeting host's policies and use CueCard only where
+                    assistance is permitted.</span
+                  ></label
+                >
+
+                <div id="formError" class="form-error" role="alert"></div>
+                <button type="submit" class="primary start-interview">
+                  Start AI interview <span>→</span>
+                </button>
+                <p class="privacy-note">
+                  Saved keys are encrypted on this device. Enabled audio goes to Deepgram; questions and
+                  session context go to your chosen AI provider.
+                </p>
+              </section>
+            </form>
+          </section>
+          <section id="sessionsPage" class="workspace-page hidden">
+            <div class="page-intro split-heading">
+              <div>
+                <span class="eyebrow">CALL SESSIONS</span>
+                <h1>Call Sessions</h1>
+                <p>Review your saved questions and cues, and pick up where you left off.</p>
+              </div>
+              <button class="primary" id="newSession">⊕ Create session</button>
+            </div>
+            <div class="session-toolbar">
+              <div class="session-filters" role="group" aria-label="Filter sessions">
+                <button class="selected" data-filter="all">All</button
+                ><button data-filter="interview">Interview</button
+                ><button data-filter="regular">Regular</button><button data-filter="mock">Mock</button>
+              </div>
+              <span id="sessionCount">0 sessions</span>
+            </div>
+            <div id="sessionCards" class="session-grid"></div>
+            <p class="storage-caption">
+              Your latest 200 sessions, interview context, and transcripts are encrypted locally. No audio
+              recordings are stored.
+            </p>
+          </section>
+          <section id="keysPage" class="workspace-page hidden">
+            <div class="page-intro">
+              <span class="eyebrow">API KEYS</span>
+              <h1>API Keys</h1>
+              <p>Save your provider and transcription credentials once. Use them in every session.</p>
+            </div>
+            <div class="privacy-card">
+              <span class="card-symbol"
+                ><svg viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="5" y="10" width="14" height="11" rx="2" />
+                  <path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3" /></svg
+              ></span>
+              <div>
+                <h2>Your keys stay private</h2>
+                <p>
+                  Keys are encrypted on this device using your system’s secure storage. On Mac, the encryption
+                  key is protected by Keychain.
+                </p>
+                <p>
+                  Credentials are sent only to their provider when you test a connection or use a session.
+                </p>
+              </div>
+            </div>
+            <div class="keys-heading">
+              <h2>Saved API Keys</h2>
+              <p>Manage your AI providers and live transcription service.</p>
+            </div>
+            <div id="keyCards" class="key-cards"></div>
+          </section>
         </div>
-
-        <label>Answer instructions
-          <textarea id="instructions" rows="3" placeholder="Example: Keep cues under 90 words. Use STAR for behavioral questions. Use Java for coding explanations."></textarea>
-        </label>
-
-        <label class="policy-check"><input id="responsibleUse" type="checkbox" required><span>I will follow the interviewer's or meeting host's policies and use CueCard only where assistance is permitted.</span></label>
-
-
-        <div id="formError" class="form-error" role="alert"></div>
-        <button type="submit" class="primary start-interview">Start AI interview <span>→</span></button>
-        <p class="privacy-note">Keys stay in this app session. Enabled audio goes to Deepgram; your question and supplied context go to your selected AI provider.</p>
-      </form>
-    </section>
-
-    <section id="interviewView" class="view interview-view hidden">
-      <div id="status" class="status sr-only"><span></span>Preparing</div>
-
-      <section class="question-card">
-        <div class="question-heading"><span class="section-label">QUESTION DETECTED</span><button id="clearQuestion" type="button" title="Clear question">Clear</button></div>
-        <textarea id="question" rows="3" placeholder="Question appears here, or type one yourself…" aria-label="Question detected or typed manually"></textarea>
+        <dialog id="transcriptDialog">
+          <div class="transcript-heading">
+            <div>
+              <span class="eyebrow">SESSION TRANSCRIPT</span>
+              <h2 id="transcriptTitle"></h2>
+              <p id="transcriptMeta"></p>
+            </div>
+            <button id="closeTranscript" aria-label="Close transcript">×</button>
+          </div>
+          <div id="transcriptEntries"></div>
+        </dialog>
       </section>
 
-      <section class="answer-card">
-        <div class="answer-heading">
-          <span class="section-label">SUGGESTED CUE</span>
-          <span id="answerPosition">0 / 0</span>
-        </div>
-        <div id="answer" class="answer"><span class="placeholder">A concise, context-grounded cue will appear when a complete question is detected.</span></div>
+      <section id="interviewView" class="view interview-view hidden">
+        <div id="status" class="status sr-only"><span></span>Preparing</div>
+
+        <section class="question-card">
+          <div class="question-heading">
+            <span class="section-label">QUESTION DETECTED</span
+            ><button id="clearQuestion" type="button" title="Clear question">Clear</button>
+          </div>
+          <textarea
+            id="question"
+            rows="3"
+            placeholder="Question appears here, or type one yourself…"
+            aria-label="Question detected or typed manually"
+          ></textarea>
+          <p id="audioStatus" class="audio-status" role="status">Audio off · Transcription idle</p>
+        </section>
+
+        <section class="answer-card">
+          <div class="answer-heading">
+            <span class="section-label">SUGGESTED CUE</span>
+            <span id="answerPosition">0 / 0</span>
+          </div>
+          <div id="answer" class="answer">
+            <span class="placeholder"
+              >A concise, context-grounded cue will appear when a complete question is detected.</span
+            >
+          </div>
+        </section>
+
+        <footer class="answer-nav">
+          <button id="previousAnswer">← <span>Previous</span></button>
+          <button id="analyzeScreen" type="button" title="Capture and analyze the current screen once">
+            Analyze screen
+          </button>
+          <button id="answerNow" class="answer-now">Answer now</button>
+          <button id="nextAnswer"><span>Next</span> →</button>
+        </footer>
+        <p id="historyHint" class="history-hint" role="status">
+          No saved cues yet. Answer a question to start history.
+        </p>
       </section>
+    </main>
 
-      <footer class="answer-nav">
-        <button id="previousAnswer">← <span>Previous</span></button>
-        <button id="analyzeScreen" type="button" title="Capture and analyze the current screen once">Analyze screen</button>
-        <button id="answerNow" class="answer-now">Answer now</button>
-        <button id="nextAnswer"><span>Next</span> →</button>
-      </footer>
-      <p id="historyHint" class="history-hint" role="status">No saved cues yet. Answer a question to start history.</p>
-    </section>
-  </main>
-
-  <script src="live-transcription.js"></script>
-  <script src="renderer.js"></script>
-</body>
+    <script src="providers.js"></script>
+    <script src="audio-recorder.js"></script>
+    <script src="live-transcription.js"></script>
+    <script src="workspace.js"></script>
+    <script src="renderer.js"></script>
+  </body>
 </html>
