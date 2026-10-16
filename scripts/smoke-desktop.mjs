@@ -49,6 +49,11 @@ try {
   if (!hint.includes('Type a question')) throw new Error(`Answer control failed: ${hint}`);
   const controls = (await evaluate(overlay, `(() => { const q = document.querySelector('#question'); q.value = 'Typed question'; q.dispatchEvent(new Event('input', { bubbles: true })); document.querySelector('#clearQuestion').click(); if (q.value !== '') throw new Error('Clear failed'); addAnswer({question:'First',answer:'Answer one'}); addAnswer({question:'Second',answer:'Answer two'}); document.querySelector('#previousAnswer').click(); const previous = {question:q.value, answer:document.querySelector('#answer').textContent, nextDisabled:document.querySelector('#nextAnswer').disabled}; document.querySelector('#nextAnswer').click(); return {previous, next:q.value, count:document.querySelector('#answerPosition').textContent}; })()`)).result.value;
   if (controls.previous.question !== 'First' || controls.previous.answer !== 'Answer one' || controls.previous.nextDisabled || controls.next !== 'Second' || controls.count !== '2 / 2') throw new Error(`Question/history controls failed: ${JSON.stringify(controls)}`);
+  await evaluate(overlay, `(() => { config.provider = 'openai'; window.__originalFetch = window.fetch; window.fetch = async () => ({ ok: true, json: async () => ({ choices: [{ message: { content: JSON.stringify({ question: 'Typed question', answer: 'Typed answer' }) } }] }) }); const q = document.querySelector('#question'); q.value = 'Typed question'; q.dispatchEvent(new Event('input', { bubbles: true })); document.querySelector('#answerNow').click(); })()`);
+  await pause(300);
+  const typedAnswer = (await evaluate(overlay, `({ answer:document.querySelector('#answer').textContent, count:document.querySelector('#answerPosition').textContent })`)).result.value;
+  await evaluate(overlay, `window.fetch = window.__originalFetch`);
+  if (typedAnswer.answer !== 'Typed answer' || typedAnswer.count !== '3 / 3') throw new Error(`Typed answer failed: ${JSON.stringify(typedAnswer)}`);
   await evaluate(overlay, `document.querySelector('#hideBtn').click()`);
   await pause(200);
   const compact = (await evaluate(overlay, `document.body.classList.contains('mini-mode')`)).result.value;
@@ -57,6 +62,18 @@ try {
   await pause(200);
   const restored = (await evaluate(overlay, `!document.body.classList.contains('mini-mode')`)).result.value;
   if (!restored) throw new Error('Mini mode did not restore.');
+  if (process.argv.includes('--audio-probe')) {
+    const audio = (await evaluate(overlay, `Promise.race([ (async () => { config.transcriptionKey = ''; await toggleMicAudio(); const mic = { live: !!micStream?.getAudioTracks().some(t => t.readyState === 'live'), error: document.querySelector('#answer').textContent }; await toggleSystemAudio(); const system = { live: !!systemStream?.getAudioTracks().some(t => t.readyState === 'live'), error: document.querySelector('#answer').textContent }; return { mic, system }; })(), new Promise(resolve => setTimeout(() => resolve({ timeout: true }), 8000)) ])`)).result.value;
+    console.log(JSON.stringify({ audioProbe: audio }));
+    if (audio.system?.live) {
+      await evaluate(overlay, `(() => { window.__cuecardProbeMax = 0; const analyser = audioContext.createAnalyser(); analyser.fftSize = 1024; audioContext.createMediaStreamSource(systemStream).connect(analyser); const samples = new Uint8Array(analyser.fftSize); window.__cuecardProbeTimer = setInterval(() => { analyser.getByteTimeDomainData(samples); let sum = 0; for (const sample of samples) { const value = (sample - 128) / 128; sum += value * value; } window.__cuecardProbeMax = Math.max(window.__cuecardProbeMax, Math.sqrt(sum / samples.length)); }, 25); })()`);
+      const sound = spawn('afplay', ['/System/Library/Sounds/Glass.aiff'], { stdio: 'ignore' });
+      await pause(2000);
+      sound.kill('SIGTERM');
+      const level = (await evaluate(overlay, `(() => { clearInterval(window.__cuecardProbeTimer); return window.__cuecardProbeMax; })()`)).result.value;
+      console.log(JSON.stringify({ systemAudioMaxRms: level }));
+    }
+  }
   const shot = await overlay('Page.captureScreenshot', { format: 'png' });
   await writeFile(join(profile, 'overlay.png'), Buffer.from(shot.data, 'base64'));
   await evaluate(overlay, `document.querySelector('#settingsBtn').click()`);

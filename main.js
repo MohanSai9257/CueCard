@@ -59,11 +59,15 @@ function createWindows() {
   overlayWindow.loadFile("index.html", { query: { overlay: "1" } });
   configureWindow(overlayWindow);
   const session = overlayWindow.webContents.session;
-  session.setPermissionRequestHandler((contents, permission, callback) => callback(contents === overlayWindow.webContents && permission === "media"));
-  session.setPermissionCheckHandler((contents, permission) => contents === overlayWindow.webContents && permission === "media");
+  session.setPermissionRequestHandler((contents, permission, callback) => {
+    callback(permission === "media" && contents === overlayWindow.webContents && contents.getURL().startsWith("file://"));
+  });
+  session.setPermissionCheckHandler((contents, permission, requestingOrigin) => {
+    return permission === "media" && requestingOrigin.startsWith("file://") && (!contents || contents === overlayWindow.webContents);
+  });
   session.setDisplayMediaRequestHandler(async (request, callback) => {
     try {
-      const sources = await desktopCapturer.getSources({ types: ["screen"] });
+      const sources = await desktopCapturer.getSources({ types: ["screen"], thumbnailSize: { width: 0, height: 0 } });
       if (!sources[0]) return callback({});
       callback({ video: sources[0], ...(request.audioRequested ? { audio: "loopback" } : {}) });
     } catch { callback({}); }

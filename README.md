@@ -8,10 +8,12 @@ Install [Node.js](https://nodejs.org/en/download) and npm, then open a terminal 
 
 ```sh
 npm ci
-npm start
+node scripts/make-icon.mjs
+npx electron-builder --mac dmg --arm64 --publish never
+open release/mac-arm64/CueCard.app
 ```
 
-On Mac, running from source is the recommended option until the app is signed and notarized. The GitHub preview DMGs are unsigned and may be rejected by Gatekeeper. Do not disable macOS security protections to open them.
+Use the `release/mac-arm64/CueCard.app` that was built locally, not the downloaded DMG. On macOS 14.2+, Electron's system-audio capture needs `NSAudioCaptureUsageDescription` in the running app's Info.plist; launching `npm start` from Terminal can use the parent app's permissions and leave a silent audio track. `npm start` is useful for UI development, but the packaged local app is the audio-test target. On an Intel Mac, build with `npx electron-builder --mac dmg --x64 --publish never` and open `release/mac/CueCard.app`. The GitHub preview DMGs are unsigned and may be rejected by Gatekeeper. Do not disable macOS security protections to open them.
 
 In CueCard, enter your own Deepgram key and a key for Google Gemini, Groq, or OpenAI. Add your role, company, job description, PDF/DOCX résumé, and answer instructions, then start a session. In the floating window, enable **System Audio** and/or **My Mic** independently, or type a question in the question box. Select **Answer now** to request a cue. **Previous** and **Next** browse earlier cues. **Clear** empties the question. The down-arrow collapses the floating window to a horse button; click the horse to restore it.
 
