@@ -9,7 +9,7 @@
 </head>
 <body>
   <header class="window-bar">
-    <div class="brand"><span class="brand-mark" aria-hidden="true">♞</span><span>CueCard</span></div>
+    <div class="brand"><img class="brand-mark" src="assets/icon.png" alt=""><span>CueCard</span></div>
     <div class="audio-controls" aria-label="Audio capture controls">
       <button id="systemAudioToggle" class="audio-control muted" type="button" title="System audio is inactive" aria-pressed="false">
         <svg class="system-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="4" width="14" height="11" rx="1.5"></rect><path d="M7 20h5M9.5 15v5M19 8c1.5 1.4 1.5 4.6 0 6M21.5 6c2.7 2.7 2.7 7.3 0 10"></path></svg>
@@ -29,12 +29,12 @@
       <button id="closeBtn" title="Quit">×</button>
     </div>
   </header>
-  <button id="miniRestore" class="mini-restore" type="button" title="Expand CueCard" aria-label="Expand CueCard">♞</button>
+  <button id="miniRestore" class="mini-restore" type="button" title="Expand CueCard" aria-label="Expand CueCard"><img src="assets/icon.png" alt=""></button>
 
   <main>
     <section id="setupView" class="view setup-view">
       <div class="intro">
-        <span class="eyebrow">LIVE PREPARATION ASSISTANT · LOCAL v1.1.1</span>
+        <span class="eyebrow">LIVE PREPARATION ASSISTANT · LOCAL v1.1.2</span>
         <h1>Prepare your session</h1>
         <p>CueCard listens for questions and surfaces concise cues from material you provide.</p>
       </div>
@@ -113,11 +113,12 @@
       </section>
 
       <footer class="answer-nav">
-        <button id="previousAnswer" disabled>← <span>Previous</span></button>
+        <button id="previousAnswer">← <span>Previous</span></button>
         <button id="analyzeScreen" type="button" title="Capture and analyze the current screen once">Analyze screen</button>
         <button id="answerNow" class="answer-now">Answer now</button>
-        <button id="nextAnswer" disabled><span>Next</span> →</button>
+        <button id="nextAnswer"><span>Next</span> →</button>
       </footer>
+      <p id="historyHint" class="history-hint" role="status">No saved cues yet. Answer a question to start history.</p>
     </section>
   </main>
 

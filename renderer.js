@@ -507,8 +507,21 @@ function renderHistory() {
   if (item) answerEl.textContent = item.answer;
   else answerEl.innerHTML = '<span class="placeholder">A concise, context-grounded cue will appear when a complete question is detected.</span>';
   $("#answerPosition").textContent = `${history.length ? historyIndex + 1 : 0} / ${history.length}`;
-  $("#previousAnswer").disabled = historyIndex <= 0;
-  $("#nextAnswer").disabled = historyIndex < 0 || historyIndex >= history.length - 1;
+  $("#previousAnswer").classList.toggle("at-edge", historyIndex <= 0);
+  $("#nextAnswer").classList.toggle("at-edge", historyIndex < 0 || historyIndex >= history.length - 1);
+  $("#previousAnswer").title = historyIndex <= 0 ? "No earlier saved cue" : "Show previous saved cue";
+  $("#nextAnswer").title = historyIndex < 0 || historyIndex >= history.length - 1 ? "No later saved cue" : "Show next saved cue";
+  $("#historyHint").textContent = history.length === 0 ? "No saved cues yet. Answer a question to start history." : history.length === 1 ? "1 saved cue. Answer another question to enable Previous and Next." : `Showing saved cue ${historyIndex + 1} of ${history.length}.`;
+}
+
+function navigateHistory(direction) {
+  const nextIndex = historyIndex + direction;
+  if (nextIndex < 0 || nextIndex >= history.length) {
+    $("#historyHint").textContent = history.length < 2 ? "There is only one saved cue. Answer another question to build history." : direction < 0 ? "You are at the first saved cue." : "You are at the latest saved cue.";
+    return;
+  }
+  historyIndex = nextIndex;
+  renderHistory();
 }
 
 function forceAnswer() {
@@ -597,8 +610,8 @@ $("#clearQuestion").addEventListener("click", () => {
   if (liveTranscription) { liveTranscription.text = ""; liveTranscription.finalText = ""; }
   questionEl.focus();
 });
-$("#previousAnswer").addEventListener("click", () => { if (historyIndex > 0) { historyIndex--; renderHistory(); } });
-$("#nextAnswer").addEventListener("click", () => { if (historyIndex < history.length - 1) { historyIndex++; renderHistory(); } });
+$("#previousAnswer").addEventListener("click", () => navigateHistory(-1));
+$("#nextAnswer").addEventListener("click", () => navigateHistory(1));
 async function toggleCompact() {
   const compact = await window.cuecard.toggleCompact();
   document.body.classList.toggle("mini-mode", compact);

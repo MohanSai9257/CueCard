@@ -1,6 +1,6 @@
 {
   "name": "cuecard",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Responsible live preparation assistant with context-grounded speaking cues",
   "main": "main.js",
   "scripts": {

@@ -54,6 +54,8 @@ try {
   const typedAnswer = (await evaluate(overlay, `({ answer:document.querySelector('#answer').textContent, count:document.querySelector('#answerPosition').textContent })`)).result.value;
   await evaluate(overlay, `window.fetch = window.__originalFetch`);
   if (typedAnswer.answer !== 'Typed answer' || typedAnswer.count !== '3 / 3') throw new Error(`Typed answer failed: ${JSON.stringify(typedAnswer)}`);
+  const navigation = (await evaluate(overlay, `(() => { document.querySelector('#previousAnswer').click(); const back = document.querySelector('#answer').textContent; document.querySelector('#nextAnswer').click(); const forward = document.querySelector('#answer').textContent; document.querySelector('#nextAnswer').click(); const edge = document.querySelector('#historyHint').textContent; return { back, forward, edge }; })()`)).result.value;
+  if (navigation.back !== 'Answer two' || navigation.forward !== 'Typed answer' || !navigation.edge.includes('latest')) throw new Error(`Generated cue navigation failed: ${JSON.stringify(navigation)}`);
   await evaluate(overlay, `document.querySelector('#hideBtn').click()`);
   await pause(200);
   const compact = (await evaluate(overlay, `document.body.classList.contains('mini-mode')`)).result.value;
