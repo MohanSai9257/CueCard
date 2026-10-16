@@ -118,9 +118,7 @@ ipcMain.on("win-resize", (event, delta) => {
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
   app.on("second-instance", showSetup);
-  app.on("open-url", event => { event.preventDefault(); if (app.isReady()) showSetup(); });
   app.whenReady().then(() => {
-    if (app.isPackaged) app.setAsDefaultProtocolClient("cuecard");
     createWindows();
   });
   app.on("activate", showSetup);

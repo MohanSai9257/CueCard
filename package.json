@@ -7,7 +7,6 @@
     "start": "electron .",
     "dev": "electron . --dev",
     "check": "node --check main.js && node --check preload.js && node --check renderer.js && node --check live-transcription.js",
-    "build:web": "node scripts/build-web.mjs",
     "build:mac": "electron-builder --mac dmg --arm64 --x64 --publish never",
     "build:win": "electron-builder --win nsis --x64 --publish never"
   },
@@ -39,14 +38,6 @@
       "assets/icon.png"
     ],
     "asar": true,
-    "protocols": [
-      {
-        "name": "CueCard",
-        "schemes": [
-          "cuecard"
-        ]
-      }
-    ],
     "mac": {
       "category": "public.app-category.productivity",
       "icon": "assets/icon.png",

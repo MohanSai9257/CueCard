@@ -1,30 +1,28 @@
 # CueCard desktop
 
-CueCard is a Mac and Windows application for live transcription and context-grounded speaking cues. The website distributes installers. Session setup, résumé parsing and audio capture run inside the installed application; no localhost service or browser bridge is required.
+CueCard is a local Mac and Windows desktop app for live transcription and context-grounded speaking cues. Its setup form, résumé parsing, floating assistant, and audio capture run in Electron. No website or local server is required. Internet access is required for Deepgram transcription and the selected AI provider.
 
-## Install the preview
+## Run locally
 
-Download the matching installer from [Releases](https://github.com/MohanSai9257/CueCard/releases/tag/v1.1.0). macOS builds are provided for Apple silicon and Intel; the Windows installer targets x64 PCs.
+Install [Node.js](https://nodejs.org/en/download) and npm, then open a terminal in this repository:
 
-These preview installers are unsigned and the Mac app is not notarized. Publisher signing, notarization and automatic updates are not configured. OS security warnings are expected; verify the release and checksum before proceeding through your OS's normal approval UI. Do not disable system security protections.
+```sh
+npm ci
+npm start
+```
 
-Open CueCard, enter an AI provider key and a Deepgram key, upload a text-based PDF/DOCX résumé, and complete the session details. Start opens the floating assistant. Enable System Audio and/or My Mic explicitly. Use Answer now to request a cue. The gear ends capture and returns to settings. macOS may require Microphone and Screen & System Audio Recording permissions in System Settings, followed by an app restart.
+On Mac, running from source is the recommended option until the app is signed and notarized. The GitHub preview DMGs are unsigned and may be rejected by Gatekeeper. Do not disable macOS security protections to open them.
 
-Only audio is sent for transcription. Deepgram receives enabled audio; the selected AI provider receives your question and supplied context. Keys and session context remain in process memory until the app exits. Provider charges and limits apply. Use assistance only where permitted. No guarantee of screen-share invisibility is provided.
+In CueCard, enter your own Deepgram key and a key for Google Gemini, Groq, or OpenAI. Add your role, company, job description, PDF/DOCX résumé, and answer instructions, then start a session. In the floating window, enable **System Audio** and/or **My Mic** independently. macOS may require Microphone and Screen & System Audio Recording permissions in System Settings; restart CueCard after granting them. Select **Answer now** to request a cue.
 
-## Develop and build
+Only enabled audio is sent to Deepgram for transcription. The selected AI provider receives the question and context you supplied when you request an answer. Keys and context stay in app process memory until exit. Provider limits or charges may apply. Use the assistant only where permitted. Screen-share invisibility is not guaranteed.
 
-Requires Node.js and npm. Run `npm ci`, then `npm start`.
+## Developer checks and local builds
 
 - `npm run check`: JavaScript syntax checks.
-- `node scripts/make-icon.mjs`: generate the application icon from its SVG source.
-- `npm run build:mac`: Apple silicon and Intel DMG installers.
-- `npm run build:win`: Windows x64 NSIS installer.
-- `npm run build:web`: static download page in `dist`.
-- `node scripts/smoke-desktop.mjs /absolute/path/to/CueCard`: native setup/session IPC smoke test without microphone or provider calls.
+- `node scripts/make-icon.mjs`: regenerate the app icon from its SVG source.
+- `npm run build:mac`: build Apple silicon and Intel Mac apps and DMGs on a Mac.
+- `npm run build:win`: build a Windows x64 installer on Windows.
+- `node scripts/smoke-desktop.mjs /absolute/path/to/CueCard`: desktop setup/session smoke test without live audio or provider calls.
 
-The manual GitHub Actions workflow builds on native Mac and Windows runners and retains installers as artifacts. Release publishing is separate. No developer keys or signing credentials belong in source control.
-
-## Release status
-
-Version 1.1.0 introduces native setup and resume selection, independent audio controls, Deepgram streaming, answer history, desktop protocol launching, and installers. It is a preview, not full feature parity with Parakeet AI. Accounts, subscriptions, hosted AI credits, automatic updates, meeting detection and post-call summaries are not implemented. Windows runtime audio requires validation on a Windows PC; packaged Mac UI is smoke-tested separately from live-call/provider testing.
+The app can be shared as source code so another person can build and run it locally. Distributing a Mac app that opens normally on other computers requires Developer ID signing and Apple notarization. Windows runtime audio capture still needs validation on a Windows PC.
