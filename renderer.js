@@ -55,6 +55,7 @@ let retryAfter = 0;
 let retryRecording = null;
 let cooldownTimer = null;
 let liveTranscription = null;
+let questionManuallyEdited = false;
 
 function updateModels() {
   modelEl.replaceChildren(...MODELS[providerEl.value].map(([value, label]) => {
@@ -90,7 +91,7 @@ ${config.resumeText}
 Answer instructions:
 ${config.instructions || "Give a direct answer first, then concise supporting detail. Use STAR for behavioral questions."}
 
-Identify the most recent complete question in the audio. Draft a natural cue the candidate can adapt in their own words. Never invent experience, metrics, credentials, or facts absent from the supplied résumé and job context. For behavioral questions, use only defensible examples from the résumé. Keep the cue easy to scan while speaking.`;
+Identify the latest spoken or typed question, or the explicit screen-analysis request. Draft a natural cue the candidate can adapt in their own words. Never invent experience, metrics, credentials, or facts absent from the supplied résumé and job context. For behavioral questions, use only defensible examples from the résumé. Keep the cue easy to scan while speaking.`;
 }
 
 async function pickResume() {
@@ -150,6 +151,7 @@ async function beginInterview(event) {
 async function startOverlaySession(sessionConfig) {
   if (!sessionConfig || sessionConfig.sessionId === activeSessionId) return;
   activeSessionId = sessionConfig.sessionId;
+  document.body.classList.remove("mini-mode");
   if (stream) stopInterview(false);
   config = sessionConfig;
   if (config.provider === "gemini" && config.model.startsWith("gemini-2.5-")) config.model = "gemini-3.8-flash";
@@ -166,7 +168,8 @@ async function startOverlaySession(sessionConfig) {
     currentQuestion = "";
     awaitingNextQuestion = false;
     renderHistory();
-    questionEl.textContent = "Enable System Audio or My Mic, then ask a question.";
+    questionEl.value = "";
+    questionEl.placeholder = "Enable System Audio or My Mic, then ask a question—or type it here.";
   } catch (error) {
     stopInterview(false);
     answerEl.textContent = `Audio could not start: ${error.message}`;
@@ -236,6 +239,7 @@ async function enableSystemCapture() {
 
 async function enableMicCapture() {
   if (micStream?.getAudioTracks().some(track => track.readyState === "live")) return micStream;
+  if (!await window.cuecard.requestMicrophone()) throw new Error("Microphone permission is denied. Enable CueCard in System Settings → Privacy & Security → Microphone.");
   const mediaDevices = navigator.mediaDevices;
   const capturePromise = mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true }, video: false });
   await audioContext?.resume();
@@ -261,7 +265,7 @@ function updateAudioControls() {
   if (active && stream && config?.transcriptionKey && !liveTranscription?.socket) {
     liveTranscription = new LiveTranscription({
       key: config.transcriptionKey, stream,
-      onText: text => { questionEl.textContent = text; },
+      onText: text => { if (!questionManuallyEdited && historyIndex === history.length - 1) questionEl.value = text; },
       onError: message => { answerEl.textContent = message; },
     });
     liveTranscription.start();
@@ -281,7 +285,7 @@ async function toggleSystemAudio() {
   if (!systemStream?.getAudioTracks().some(track => track.readyState === "live")) {
     const button = $("#systemAudioToggle");
     button.disabled = true;
-    try { await enableSystemCapture(); questionEl.textContent = "Listening to system audio…"; } catch (error) { answerEl.textContent = `System audio: ${error.message}`; }
+    try { await enableSystemCapture(); questionEl.placeholder = "Listening to system audio…"; } catch (error) { answerEl.textContent = `System audio: ${error.message}`; }
     finally { button.disabled = false; }
     return;
   }
@@ -293,7 +297,7 @@ async function toggleMicAudio() {
   if (!micStream?.getAudioTracks().some(track => track.readyState === "live")) {
     const button = $("#micAudioToggle");
     button.disabled = true;
-    try { await enableMicCapture(); questionEl.textContent = "Listening to your microphone…"; } catch (error) { answerEl.textContent = `Microphone: ${error.message}. Allow microphone access in System Settings, then restart CueCard.`; }
+    try { await enableMicCapture(); questionEl.placeholder = "Listening to your microphone…"; } catch (error) { answerEl.textContent = `Microphone: ${error.message}. Allow microphone access in System Settings, then restart CueCard.`; }
     finally { button.disabled = false; }
     return;
   }
@@ -344,7 +348,7 @@ async function processAudio(blob) {
       clearInterval(cooldownTimer);
       const update = () => {
         const seconds = Math.max(0, Math.ceil((retryAfter - Date.now()) / 1000));
-        questionEl.textContent = "Recording saved — waiting for Gemini quota.";
+        questionEl.placeholder = "Recording saved — waiting for Gemini quota.";
         answerEl.textContent = seconds ? `Gemini's request limit was reached. Retry in ${seconds}s. Your recording is saved; no automatic retries will be made.` : "You can retry now. Click Retry saved question; you do not need to repeat it.";
         $("#answerNow").disabled = seconds > 0;
         $("#answerNow").textContent = seconds ? `Retry in ${seconds}s` : "Retry saved question";
@@ -353,7 +357,7 @@ async function processAudio(blob) {
       update();
       cooldownTimer = setInterval(update, 1000);
     } else {
-      questionEl.textContent = "Audio processing failed. Your recording was captured.";
+      questionEl.placeholder = "Audio processing failed. Your recording was captured.";
       answerEl.textContent = `Could not generate an answer: ${error.message}`;
     }
     setStatus("Error", "error");
@@ -368,7 +372,8 @@ async function askGemini(blob) {
   const transcript = typeof blob === "string" ? blob : null;
   const audio = transcript ? null : await blobToBase64(blob);
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(config.model)}:generateContent?key=${encodeURIComponent(config.apiKey)}`;
-  questionEl.textContent = transcript || "Processing your recorded question…";
+  if (transcript && !questionManuallyEdited) questionEl.value = transcript;
+  else questionEl.placeholder = "Processing your recorded question…";
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -376,7 +381,7 @@ async function askGemini(blob) {
     body: JSON.stringify({
       system_instruction: { parts: [{ text: systemPrompt() }] },
       contents: [{ role: "user", parts: [
-        { text: 'Listen to the recorded speech. Return JSON with "question" containing the spoken question or request and "answer" containing an answer based on the supplied résumé, job description, and instructions. Do not invent speech. If no speech is audible, return empty strings.' },
+        { text: transcript ? 'Use the supplied question text. Return JSON with "question" and "answer" fields, grounded in the résumé, job description, and instructions.' : 'Listen to the recorded speech. Return JSON with "question" containing the spoken question or request and "answer" containing an answer based on the supplied résumé, job description, and instructions. Do not invent speech. If no speech is audible, return empty strings.' },
         ...(transcript ? [{ text: `Transcribed question: ${transcript}` }] : [{ inline_data: { mime_type: blob.type.split(";")[0], data: audio } }]),
       ] }],
       generationConfig: { temperature: 0.25, maxOutputTokens: 4096, responseMimeType: "application/json", thinkingConfig: { thinkingLevel: "low" } },
@@ -414,7 +419,7 @@ async function askOpenAICompatible(blob) {
   transcript = (await transcriptionResponse.json()).text?.trim();
   }
   if (!transcript) return null;
-  questionEl.textContent = transcript;
+  if (!questionManuallyEdited) questionEl.value = transcript;
 
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
@@ -454,18 +459,51 @@ function blobToBase64(blob) {
   });
 }
 
+async function analyzeScreen() {
+  if (!config || processing) return;
+  const button = $("#analyzeScreen");
+  button.disabled = true;
+  processing = true;
+  answerEl.textContent = "Capturing the current screen once…";
+  try {
+    const imageUrl = await window.cuecard.captureScreen();
+    const prompt = `Analyze this screen only for this request. ${questionEl.value.trim() || "Summarize the visible content and give a useful speaking cue."} Return a concise cue. Do not claim to see anything outside this screenshot.`;
+    let answer;
+    if (config.provider === "gemini") {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(config.model)}:generateContent?key=${encodeURIComponent(config.apiKey)}`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, signal: AbortSignal.timeout(45000),
+        body: JSON.stringify({ system_instruction: { parts: [{ text: systemPrompt() }] }, contents: [{ role: "user", parts: [{ text: prompt }, { inline_data: { mime_type: "image/png", data: imageUrl.split(",")[1] } }] }] }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error?.message || `Screen analysis failed (${response.status})`);
+      answer = result.candidates?.[0]?.content?.parts?.map(part => part.text || "").join("").trim();
+    } else {
+      const response = await fetch(config.provider === "groq" ? "https://api.groq.com/openai/v1/chat/completions" : "https://api.openai.com/v1/chat/completions", {
+        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${config.apiKey}` }, signal: AbortSignal.timeout(45000),
+        body: JSON.stringify({ model: config.provider === "groq" ? "qwen/qwen3.8-27b" : config.model, max_tokens: 900, messages: [{ role: "system", content: systemPrompt() }, { role: "user", content: [{ type: "text", text: prompt }, { type: "image_url", image_url: { url: imageUrl } }] }] }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error?.message || `Screen analysis failed (${response.status})`);
+      answer = result.choices?.[0]?.message?.content?.trim();
+    }
+    if (!answer) throw new Error("The AI returned no screen analysis.");
+    addAnswer({ question: questionEl.value.trim() || "Analyze screen", answer });
+  } catch (error) { answerEl.textContent = `Screen analysis: ${error.message}`; }
+  finally { processing = false; button.disabled = false; }
+}
+
 function addAnswer(item) {
   currentQuestion = item.question;
-  const previous = history[history.length - 1];
-  if (previous?.question.toLowerCase() === item.question.toLowerCase()) history[history.length - 1] = item;
-  else history.push(item);
+  history.push(item);
   historyIndex = history.length - 1;
+  questionManuallyEdited = false;
   renderHistory();
 }
 
 function renderHistory() {
   const item = history[historyIndex];
-  questionEl.textContent = item?.question || "Listening for the first question…";
+  questionEl.value = item?.question || "";
+  questionEl.placeholder = "Question appears here, or type one yourself…";
   if (item) answerEl.textContent = item.answer;
   else answerEl.innerHTML = '<span class="placeholder">A concise, context-grounded cue will appear when a complete question is detected.</span>';
   $("#answerPosition").textContent = `${history.length ? historyIndex + 1 : 0} / ${history.length}`;
@@ -474,7 +512,7 @@ function renderHistory() {
 }
 
 function forceAnswer() {
-  if (!config || !recorder) { answerEl.textContent = "Start a session and enable an audio source first."; return; }
+  if (!config) { answerEl.textContent = "Start a session first."; return; }
   if (processing) { setStatus("Preparing answer", "thinking"); return; }
   if (Date.now() < retryAfter) return;
   if (retryRecording) {
@@ -484,20 +522,26 @@ function forceAnswer() {
     queueAudio(saved);
     return;
   }
+  const typedQuestion = questionEl.value.trim();
+  if (typedQuestion && (questionManuallyEdited || !liveTranscription?.text?.trim())) {
+    queueAudio(typedQuestion);
+    return;
+  }
   if (config.transcriptionKey) {
     const text = liveTranscription?.text?.trim();
-    if (!text) { answerEl.textContent = "Waiting for live speech text. Check the audio source and Deepgram connection."; return; }
+    if (!text) { answerEl.textContent = "Type a question or enable an audio source and check the Deepgram connection."; return; }
     queueAudio(text);
     liveTranscription.finalText = "";
     liveTranscription.text = "";
     return;
   }
-  if (!speechStartedAt) { answerEl.textContent = "No speech detected yet. Enable an audio source and speak before clicking Answer now."; return; }
+  if (!recorder || !speechStartedAt) { answerEl.textContent = "Type a question or enable an audio source and speak before clicking Answer now."; return; }
   if (recorder.state === "recording") recorder.stop();
   else if (lastAudio) queueAudio(lastAudio);
 }
 
 function stopInterview(showSetup = true) {
+  document.body.classList.remove("mini-mode");
   liveTranscription?.stop();
   liveTranscription = null;
   clearInterval(cooldownTimer);
@@ -527,6 +571,7 @@ function stopInterview(showSetup = true) {
   chunks = [];
   lastAudio = null;
   currentQuestion = "";
+  questionManuallyEdited = false;
   awaitingNextQuestion = false;
   updateAudioControls();
   if (showSetup) {
@@ -544,9 +589,22 @@ $("#setupForm").addEventListener("submit", beginInterview);
 $("#systemAudioToggle").addEventListener("click", toggleSystemAudio);
 $("#micAudioToggle").addEventListener("click", toggleMicAudio);
 $("#answerNow").addEventListener("click", forceAnswer);
+$("#analyzeScreen").addEventListener("click", analyzeScreen);
+questionEl.addEventListener("input", () => { questionManuallyEdited = true; });
+$("#clearQuestion").addEventListener("click", () => {
+  questionEl.value = "";
+  questionManuallyEdited = false;
+  if (liveTranscription) { liveTranscription.text = ""; liveTranscription.finalText = ""; }
+  questionEl.focus();
+});
 $("#previousAnswer").addEventListener("click", () => { if (historyIndex > 0) { historyIndex--; renderHistory(); } });
 $("#nextAnswer").addEventListener("click", () => { if (historyIndex < history.length - 1) { historyIndex++; renderHistory(); } });
-$("#hideBtn").addEventListener("click", () => window.cuecard.minimize());
+async function toggleCompact() {
+  const compact = await window.cuecard.toggleCompact();
+  document.body.classList.toggle("mini-mode", compact);
+}
+$("#hideBtn").addEventListener("click", toggleCompact);
+$("#miniRestore").addEventListener("click", toggleCompact);
 $("#closeBtn").addEventListener("click", () => window.cuecard.close());
 $("#settingsBtn").addEventListener("click", () => window.cuecard.settings());
 $("#zoomIn").addEventListener("click", () => { zoom = Math.min(1.35, zoom + .1); document.documentElement.style.zoom = zoom; window.cuecard?.resize(30); });

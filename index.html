@@ -9,7 +9,7 @@
 </head>
 <body>
   <header class="window-bar">
-    <div class="brand"><span class="brand-mark">C</span><span>CueCard</span></div>
+    <div class="brand"><span class="brand-mark" aria-hidden="true">♞</span><span>CueCard</span></div>
     <div class="audio-controls" aria-label="Audio capture controls">
       <button id="systemAudioToggle" class="audio-control muted" type="button" title="System audio is inactive" aria-pressed="false">
         <svg class="system-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="4" width="14" height="11" rx="1.5"></rect><path d="M7 20h5M9.5 15v5M19 8c1.5 1.4 1.5 4.6 0 6M21.5 6c2.7 2.7 2.7 7.3 0 10"></path></svg>
@@ -25,10 +25,11 @@
       <button id="settingsBtn" title="End session and return to settings" aria-label="Session settings">⚙</button>
       <button id="zoomOut" title="Zoom out">−</button>
       <button id="zoomIn" title="Zoom in">+</button>
-      <button id="hideBtn" title="Hide CueCard">⌄</button>
+      <button id="hideBtn" title="Collapse to horse icon" aria-label="Collapse CueCard">⌄</button>
       <button id="closeBtn" title="Quit">×</button>
     </div>
   </header>
+  <button id="miniRestore" class="mini-restore" type="button" title="Expand CueCard" aria-label="Expand CueCard">♞</button>
 
   <main>
     <section id="setupView" class="view setup-view">
@@ -99,8 +100,8 @@
       <div id="status" class="status sr-only"><span></span>Preparing</div>
 
       <section class="question-card">
-        <span class="section-label">QUESTION DETECTED</span>
-        <p id="question">Listening for the first question…</p>
+        <div class="question-heading"><span class="section-label">QUESTION DETECTED</span><button id="clearQuestion" type="button" title="Clear question">Clear</button></div>
+        <textarea id="question" rows="3" placeholder="Question appears here, or type one yourself…" aria-label="Question detected or typed manually"></textarea>
       </section>
 
       <section class="answer-card">
@@ -113,6 +114,7 @@
 
       <footer class="answer-nav">
         <button id="previousAnswer" disabled>← <span>Previous</span></button>
+        <button id="analyzeScreen" type="button" title="Capture and analyze the current screen once">Analyze screen</button>
         <button id="answerNow" class="answer-now">Answer now</button>
         <button id="nextAnswer" disabled><span>Next</span> →</button>
       </footer>

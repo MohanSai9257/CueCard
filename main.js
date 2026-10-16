@@ -1,12 +1,12 @@
-const { app, BrowserWindow, desktopCapturer, dialog, globalShortcut, ipcMain, Menu, screen, shell } = require("electron");
+const { app, BrowserWindow, desktopCapturer, dialog, globalShortcut, ipcMain, Menu, screen, shell, systemPreferences } = require("electron");
 const fs = require("fs/promises");
 const path = require("path");
 const mammoth = require("mammoth");
 const pdfParse = require("pdf-parse");
 
-if (process.platform === "darwin") app.commandLine.appendSwitch("disable-features", "MacCatapLoopbackAudioForScreenShare");
 let setupWindow;
 let overlayWindow;
+let expandedBounds;
 let pendingSession = null;
 let sessionSequence = 0;
 
@@ -19,6 +19,13 @@ function showSetup() {
 function send(channel, payload) {
   if (overlayWindow && !overlayWindow.isDestroyed()) overlayWindow.webContents.send(channel, payload);
 }
+function restoreOverlayBounds() {
+  if (!expandedBounds || !overlayWindow || overlayWindow.isDestroyed()) return;
+  overlayWindow.setMinimumSize(72, 72);
+  overlayWindow.setBounds(expandedBounds, true);
+  overlayWindow.setMinimumSize(420, 520);
+  expandedBounds = null;
+}
 function configureWindow(window) {
   const allowedLinks = new Set(["https://aistudio.google.com/apikey", "https://console.groq.com/keys", "https://platform.openai.com/api-keys", "https://console.deepgram.com/"]);
   window.webContents.setWindowOpenHandler(({ url }) => {
@@ -28,6 +35,10 @@ function configureWindow(window) {
   window.webContents.on("will-navigate", event => event.preventDefault());
 }
 function createWindows() {
+  if (process.platform === "darwin") {
+    app.dock?.setIcon(path.join(__dirname, "assets/icon.png"));
+    app.dock?.show();
+  }
   const webPreferences = { preload: path.join(__dirname, "preload.js"), contextIsolation: true, nodeIntegration: false, sandbox: true };
   setupWindow = new BrowserWindow({
     title: "CueCard — Prepare your session", width: 1040, height: 900,
@@ -102,10 +113,35 @@ ipcMain.handle("start-session", async (event, config) => {
 ipcMain.handle("get-pending-session", event => trusted(event) ? pendingSession : null);
 ipcMain.on("win-close", event => { if (trusted(event)) app.quit(); });
 ipcMain.on("win-minimize", event => { if (trusted(event)) BrowserWindow.fromWebContents(event.sender)?.minimize(); });
+ipcMain.handle("toggle-compact", event => {
+  if (event.sender !== overlayWindow?.webContents) return false;
+  if (expandedBounds) {
+    restoreOverlayBounds();
+    overlayWindow.focus();
+    return false;
+  }
+  expandedBounds = overlayWindow.getBounds();
+  overlayWindow.setMinimumSize(72, 72);
+  overlayWindow.setBounds({ x: expandedBounds.x + expandedBounds.width - 72, y: expandedBounds.y, width: 72, height: 72 }, true);
+  return true;
+});
+ipcMain.handle("capture-screen", async event => {
+  if (event.sender !== overlayWindow?.webContents || !pendingSession) throw new Error("Start a session first.");
+  const { width, height } = screen.getPrimaryDisplay().size;
+  const sources = await desktopCapturer.getSources({ types: ["screen"], thumbnailSize: { width: Math.min(width, 1600), height: Math.min(height, 1000) } });
+  const image = sources[0]?.thumbnail;
+  if (!image || image.isEmpty()) throw new Error("Screen capture is unavailable. Check macOS Screen Recording permission.");
+  return image.toDataURL();
+});
+ipcMain.handle("request-microphone", async event => {
+  if (event.sender !== overlayWindow?.webContents) return false;
+  return process.platform !== "darwin" || systemPreferences.askForMediaAccess("microphone");
+});
 ipcMain.on("session-settings", event => {
   if (!trusted(event)) return;
   pendingSession = null;
   send("end-session");
+  restoreOverlayBounds();
   overlayWindow.hide();
   showSetup();
 });

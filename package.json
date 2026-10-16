@@ -45,7 +45,7 @@
       "extendInfo": {
         "NSMicrophoneUsageDescription": "CueCard uses your microphone when you enable My Mic.",
         "NSAudioCaptureUsageDescription": "CueCard captures call audio when you enable System Audio.",
-        "NSScreenCaptureUsageDescription": "CueCard needs screen recording permission to capture system audio. Only audio is sent for transcription."
+        "NSScreenCaptureUsageDescription": "CueCard captures a screenshot only when you choose Analyze screen. System audio may require a separate macOS recording permission."
       }
     },
     "win": {

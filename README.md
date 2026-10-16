@@ -13,7 +13,9 @@ npm start
 
 On Mac, running from source is the recommended option until the app is signed and notarized. The GitHub preview DMGs are unsigned and may be rejected by Gatekeeper. Do not disable macOS security protections to open them.
 
-In CueCard, enter your own Deepgram key and a key for Google Gemini, Groq, or OpenAI. Add your role, company, job description, PDF/DOCX résumé, and answer instructions, then start a session. In the floating window, enable **System Audio** and/or **My Mic** independently. macOS may require Microphone and Screen & System Audio Recording permissions in System Settings; restart CueCard after granting them. Select **Answer now** to request a cue.
+In CueCard, enter your own Deepgram key and a key for Google Gemini, Groq, or OpenAI. Add your role, company, job description, PDF/DOCX résumé, and answer instructions, then start a session. In the floating window, enable **System Audio** and/or **My Mic** independently, or type a question in the question box. Select **Answer now** to request a cue. **Previous** and **Next** browse earlier cues. **Clear** empties the question. The down-arrow collapses the floating window to a horse button; click the horse to restore it.
+
+**Analyze screen** is a separate, one-time action: clicking it captures a screenshot and sends that screenshot to the selected AI provider. System Audio sends only audio to transcription; it does not send screen images. Electron's macOS loopback capture still selects a display internally, and macOS may request System Audio Recording or Screen Recording permission depending on its version and settings. Microphone permission is separate. Restart CueCard after granting new permissions. Neither capture mode is guaranteed to work on every Mac or call app without a live device test.
 
 Only enabled audio is sent to Deepgram for transcription. The selected AI provider receives the question and context you supplied when you request an answer. Keys and context stay in app process memory until exit. Provider limits or charges may apply. Use the assistant only where permitted. Screen-share invisibility is not guaranteed.
 

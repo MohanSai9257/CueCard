@@ -3,6 +3,9 @@ const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("cuecard", {
   close: () => ipcRenderer.send("win-close"),
   minimize: () => ipcRenderer.send("win-minimize"),
+  toggleCompact: () => ipcRenderer.invoke("toggle-compact"),
+  captureScreen: () => ipcRenderer.invoke("capture-screen"),
+  requestMicrophone: () => ipcRenderer.invoke("request-microphone"),
   resize: delta => ipcRenderer.send("win-resize", delta),
   pickResume: () => ipcRenderer.invoke("pick-resume"),
   startSession: config => ipcRenderer.invoke("start-session", config),
