@@ -5,9 +5,11 @@ contextBridge.exposeInMainWorld("cuecard", {
   minimize: () => ipcRenderer.send("win-minimize"),
   resize: delta => ipcRenderer.send("win-resize", delta),
   pickResume: () => ipcRenderer.invoke("pick-resume"),
-  getProtectionStatus: () => ipcRenderer.invoke("capture-protection-status"),
+  startSession: config => ipcRenderer.invoke("start-session", config),
+  settings: () => ipcRenderer.send("session-settings"),
   getPendingSession: () => ipcRenderer.invoke("get-pending-session"),
   onForceAnswer: callback => ipcRenderer.on("force-answer", callback),
   onToggleCapture: callback => ipcRenderer.on("toggle-capture", callback),
   onStartSession: callback => ipcRenderer.on("start-session", (_, config) => callback(config)),
+  onEndSession: callback => ipcRenderer.on("end-session", callback),
 });

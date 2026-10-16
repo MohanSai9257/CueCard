@@ -1,6 +1,4 @@
-let floatingWindow = null;
-let hostedChannel = null;
-const $ = selector => floatingWindow?.document.querySelector(selector) || document.querySelector(selector);
+const $ = selector => document.querySelector(selector);
 
 const MODELS = {
   gemini: [
@@ -30,9 +28,6 @@ const answerEl = $("#answer");
 const questionEl = $("#question");
 const statusEl = $("#status");
 const isOverlay = new URLSearchParams(location.search).has("overlay");
-const isHosted = !["127.0.0.1", "localhost"].includes(location.hostname);
-const overlayChannelId = new URLSearchParams(location.search).get("channel");
-const LOCAL_COMPANION = "http://127.0.0.1:32145";
 
 let resume = null;
 let config = null;
@@ -60,21 +55,6 @@ let retryAfter = 0;
 let retryRecording = null;
 let cooldownTimer = null;
 let liveTranscription = null;
-
-async function checkDesktopCompanion() {
-  if (!isHosted || isOverlay) return;
-  const status = $("#companionStatus");
-  try {
-    const response = await fetch(`${LOCAL_COMPANION}/api/health`, {
-      cache: "no-store",
-      signal: AbortSignal.timeout(2500),
-    });
-    if (!response.ok || !(await response.json()).desktopCapture) throw new Error("Not ready");
-    status.textContent = "Desktop app connected. System audio will use its direct capture path.";
-  } catch {
-    status.textContent = "Desktop app not connected. Start CueCard locally, then click Start; Chrome-only mode requires its audio-sharing picker.";
-  }
-}
 
 function updateModels() {
   modelEl.replaceChildren(...MODELS[providerEl.value].map(([value, label]) => {
@@ -119,10 +99,6 @@ async function pickResume() {
   button.disabled = true;
   status.textContent = "Reading file…";
   try {
-    if (!window.cuecard) {
-      $("#resumeFile").click();
-      return;
-    }
     const result = await window.cuecard.pickResume();
     if (result) {
       if (!result.text) throw new Error("No readable text was found in this document.");
@@ -135,60 +111,6 @@ async function pickResume() {
     resume = null;
   } finally {
     button.disabled = false;
-  }
-}
-
-async function readBrowserResume(event) {
-  const file = event.target.files?.[0];
-  if (!file) return;
-  const button = $("#resumeBtn");
-  const status = $("#resumeStatus");
-  button.disabled = true;
-  status.textContent = "Reading file…";
-  try {
-    if (isHosted) {
-      const buffer = await file.arrayBuffer();
-      let text = "";
-      if (/\.docx$/i.test(file.name)) {
-        if (!window.mammoth) throw new Error("The Word document reader could not load.");
-        text = (await window.mammoth.extractRawText({ arrayBuffer: buffer })).value;
-      } else if (/\.pdf$/i.test(file.name)) {
-        const pdfjs = await import("./pdf.mjs");
-        pdfjs.GlobalWorkerOptions.workerSrc = "./pdf.worker.mjs";
-        const pdf = await pdfjs.getDocument({ data: new Uint8Array(buffer) }).promise;
-        const pages = [];
-        for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
-          const page = await pdf.getPage(pageNumber);
-          const content = await page.getTextContent();
-          pages.push(content.items.map(item => item.str).join(" "));
-        }
-        text = pages.join("\n");
-      } else throw new Error("Only PDF and DOCX résumés are supported.");
-      text = text.replace(/\u0000/g, "").trim().slice(0, 100000);
-      if (!text) throw new Error("No selectable text was found. Use a text-searchable PDF or DOCX file.");
-      resume = { name: file.name, text };
-      status.textContent = `${file.name} · ${text.length.toLocaleString()} characters ready`;
-      button.textContent = "Replace";
-      return;
-    }
-    const response = await fetch("/api/resume", {
-      method: "POST",
-      headers: { "Content-Type": "application/octet-stream", "X-File-Name": encodeURIComponent(file.name) },
-      body: await file.arrayBuffer(),
-    });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error || "Could not read the résumé.");
-    resume = result;
-    status.textContent = `${result.name} · ${result.text.length.toLocaleString()} characters ready`;
-    button.textContent = "Replace";
-  } catch (error) {
-    resume = null;
-    status.textContent = error instanceof TypeError && /fetch/i.test(error.message)
-      ? "CueCard service was restarted. Open or reload http://127.0.0.1:32145 and try again."
-      : error.message;
-  } finally {
-    button.disabled = false;
-    event.target.value = "";
   }
 }
 
@@ -217,93 +139,12 @@ async function beginInterview(event) {
   event.preventDefault();
   const sessionConfig = collectConfig();
   if (!sessionConfig) return;
-
-  if (!window.cuecard) {
-    if (isHosted) {
-      try {
-        if ($("#captureMode").value === "desktop") {
-          const response = await fetch(`${LOCAL_COMPANION}/api/start`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(sessionConfig),
-            signal: AbortSignal.timeout(5000),
-          });
-          const result = await response.json();
-          if (!response.ok) throw new Error(result.error || "The desktop app could not start.");
-          $("#formError").textContent = "The desktop CueCard window is active. Audio is captured by the local app.";
-        } else await openHostedOverlay({ ...sessionConfig, sessionId: Date.now() });
-      } catch (error) {
-        $("#formError").textContent = $("#captureMode").value === "desktop"
-          ? `Desktop CueCard is unavailable: ${error.message}. Start the local app and try again, or choose Chrome-only capture.`
-          : `Could not open the interview window: ${error.message}`;
-      }
-      return;
-    }
-    const submit = $(".start-interview");
-    submit.disabled = true;
-    submit.textContent = "Opening floating assistant…";
-    try {
-      const response = await fetch("/api/start", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(sessionConfig),
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Could not start the assistant.");
-      submit.disabled = false;
-      submit.innerHTML = "Restart AI interview <span>→</span>";
-      $("#formError").textContent = "The floating CueCard window is now active. This Chrome tab remains your session setup screen.";
-    } catch (error) {
-      $("#formError").textContent = error.message;
-      submit.disabled = false;
-      submit.innerHTML = "Start AI interview <span>→</span>";
-    }
-    return;
-  }
-
-  await startOverlaySession(sessionConfig);
-}
-
-async function openHostedOverlay(sessionConfig) {
-  if ("documentPictureInPicture" in window) {
-    if (!floatingWindow || floatingWindow.closed) {
-      // Request the window while the Start button's user gesture is still active.
-      const nextWindow = await documentPictureInPicture.requestWindow({ width: 520, height: 760 });
-      const stylesheet = nextWindow.document.createElement("link");
-      stylesheet.rel = "stylesheet";
-      stylesheet.href = new URL("styles.css", location.href).href;
-      nextWindow.document.head.append(stylesheet);
-      nextWindow.document.body.className = "overlay-shell";
-      nextWindow.document.body.append(document.querySelector(".window-bar"));
-      const main = nextWindow.document.createElement("main");
-      main.append(interviewView);
-      nextWindow.document.body.append(main);
-      floatingWindow = nextWindow;
-      nextWindow.addEventListener("pagehide", () => {
-        stopInterview(false);
-        document.body.prepend(nextWindow.document.querySelector(".window-bar"));
-        document.querySelector("main").append(interviewView);
-        floatingWindow = null;
-        interviewView.classList.add("hidden");
-        setupView.classList.remove("hidden");
-      }, { once: true });
-    }
-    await startOverlaySession(sessionConfig);
-    return;
-  }
-
-  if (!hostedChannel) {
-    const channelId = crypto.randomUUID();
-    const channel = new BroadcastChannel(`cuecard-${channelId}`);
-    hostedChannel = { id: channelId, channel, session: sessionConfig };
-    channel.onmessage = event => {
-      if (event.data?.type === "ready") channel.postMessage({ type: "start", session: hostedChannel.session });
-    };
-  } else hostedChannel.session = sessionConfig;
-  const popup = window.open(`/?overlay=1&channel=${encodeURIComponent(hostedChannel.id)}`, "cuecard-interview", "popup,width=520,height=760,resizable=yes");
-  if (!popup) throw new Error("Chrome blocked the popup. Allow popups for this site and try again.");
-  popup.focus();
-  hostedChannel.channel.postMessage({ type: "start", session: sessionConfig });
+  const submit = $(".start-interview");
+  submit.disabled = true;
+  try {
+    await window.cuecard.startSession(sessionConfig);
+  } catch (error) { $("#formError").textContent = error.message; }
+  finally { submit.disabled = false; }
 }
 
 async function startOverlaySession(sessionConfig) {
@@ -313,7 +154,7 @@ async function startOverlaySession(sessionConfig) {
   config = sessionConfig;
   if (config.provider === "gemini" && config.model.startsWith("gemini-2.5-")) config.model = "gemini-3.8-flash";
 
-  if (!floatingWindow) setupView.classList.add("hidden");
+  setupView.classList.add("hidden");
   interviewView.classList.remove("hidden");
   setStatus("Choose an audio source");
 
@@ -371,7 +212,7 @@ function connectStreamToMixer(audioStream) {
 async function enableSystemCapture() {
   if (systemStream?.getAudioTracks().some(track => track.readyState === "live")) return systemStream;
   // The capture request must run in the clicked, focused window before any await.
-  const mediaDevices = floatingWindow?.navigator.mediaDevices || navigator.mediaDevices;
+  const mediaDevices = navigator.mediaDevices;
   const capturePromise = mediaDevices.getDisplayMedia({
     video: true,
     audio: true,
@@ -395,7 +236,7 @@ async function enableSystemCapture() {
 
 async function enableMicCapture() {
   if (micStream?.getAudioTracks().some(track => track.readyState === "live")) return micStream;
-  const mediaDevices = floatingWindow?.navigator.mediaDevices || navigator.mediaDevices;
+  const mediaDevices = navigator.mediaDevices;
   const capturePromise = mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true }, video: false });
   await audioContext?.resume();
   micStream = await capturePromise;
@@ -436,7 +277,7 @@ function toggleAudio(sourceStream) {
 }
 
 async function toggleSystemAudio() {
-  if (!config) { answerEl.textContent = "Start a session from the Chrome setup page first."; return; }
+  if (!config) { answerEl.textContent = "Start a session from CueCard settings first."; return; }
   if (!systemStream?.getAudioTracks().some(track => track.readyState === "live")) {
     const button = $("#systemAudioToggle");
     button.disabled = true;
@@ -448,7 +289,7 @@ async function toggleSystemAudio() {
 }
 
 async function toggleMicAudio() {
-  if (!config) { answerEl.textContent = "Start a session from the Chrome setup page first."; return; }
+  if (!config) { answerEl.textContent = "Start a session from CueCard settings first."; return; }
   if (!micStream?.getAudioTracks().some(track => track.readyState === "live")) {
     const button = $("#micAudioToggle");
     button.disabled = true;
@@ -699,22 +540,23 @@ function stopInterview(showSetup = true) {
 
 providerEl.addEventListener("change", updateModels);
 $("#resumeBtn").addEventListener("click", pickResume);
-$("#resumeFile").addEventListener("change", readBrowserResume);
 $("#setupForm").addEventListener("submit", beginInterview);
 $("#systemAudioToggle").addEventListener("click", toggleSystemAudio);
 $("#micAudioToggle").addEventListener("click", toggleMicAudio);
 $("#answerNow").addEventListener("click", forceAnswer);
 $("#previousAnswer").addEventListener("click", () => { if (historyIndex > 0) { historyIndex--; renderHistory(); } });
 $("#nextAnswer").addEventListener("click", () => { if (historyIndex < history.length - 1) { historyIndex++; renderHistory(); } });
-$("#hideBtn").addEventListener("click", () => window.cuecard ? window.cuecard.minimize() : floatingWindow ? floatingWindow.close() : window.close());
-$("#closeBtn").addEventListener("click", () => window.cuecard ? window.cuecard.close() : floatingWindow ? floatingWindow.close() : window.close());
-$("#zoomIn").addEventListener("click", () => { zoom = Math.min(1.35, zoom + .1); (floatingWindow?.document || document).documentElement.style.zoom = zoom; window.cuecard?.resize(30); });
-$("#zoomOut").addEventListener("click", () => { zoom = Math.max(.8, zoom - .1); (floatingWindow?.document || document).documentElement.style.zoom = zoom; window.cuecard?.resize(-30); });
+$("#hideBtn").addEventListener("click", () => window.cuecard.minimize());
+$("#closeBtn").addEventListener("click", () => window.cuecard.close());
+$("#settingsBtn").addEventListener("click", () => window.cuecard.settings());
+$("#zoomIn").addEventListener("click", () => { zoom = Math.min(1.35, zoom + .1); document.documentElement.style.zoom = zoom; window.cuecard?.resize(30); });
+$("#zoomOut").addEventListener("click", () => { zoom = Math.max(.8, zoom - .1); document.documentElement.style.zoom = zoom; window.cuecard?.resize(-30); });
 
 if (window.cuecard) {
   window.cuecard.onForceAnswer(forceAnswer);
   window.cuecard.onToggleCapture(() => stream ? stopInterview(true) : undefined);
   window.cuecard.onStartSession(session => startOverlaySession(session));
+  window.cuecard.onEndSession(() => stopInterview(false));
   if (isOverlay) {
     window.cuecard.getPendingSession().then(session => {
       if (session) startOverlaySession(session);
@@ -722,19 +564,8 @@ if (window.cuecard) {
   }
 }
 updateModels();
-if (isHosted && !isOverlay) {
-  $("#captureModeField").classList.remove("hidden");
-  checkDesktopCompanion();
-}
 if (isOverlay) {
   document.body.classList.add("overlay-shell");
   setupView.classList.add("hidden");
   interviewView.classList.add("hidden");
-  if (isHosted && overlayChannelId) {
-    const channel = new BroadcastChannel(`cuecard-${overlayChannelId}`);
-    channel.onmessage = event => {
-      if (event.data?.type === "start") startOverlaySession(event.data.session);
-    };
-    channel.postMessage({ type: "ready" });
-  }
 }

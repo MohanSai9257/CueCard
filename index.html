@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' http://127.0.0.1:32145 wss://api.deepgram.com https://generativelanguage.googleapis.com https://api.groq.com https://api.openai.com; style-src 'self'; script-src 'self'; img-src 'self' data:">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' wss://api.deepgram.com https://generativelanguage.googleapis.com https://api.groq.com https://api.openai.com; style-src 'self'; script-src 'self'; img-src 'self' data:">
   <title>CueCard</title>
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -22,6 +22,7 @@
       </button>
     </div>
     <div class="window-actions">
+      <button id="settingsBtn" title="End session and return to settings" aria-label="Session settings">⚙</button>
       <button id="zoomOut" title="Zoom out">−</button>
       <button id="zoomIn" title="Zoom in">+</button>
       <button id="hideBtn" title="Hide CueCard">⌄</button>
@@ -79,7 +80,6 @@
             <span id="resumeStatus">PDF or DOCX, up to 100,000 characters</span>
           </div>
           <button type="button" id="resumeBtn" class="secondary">Choose file</button>
-          <input id="resumeFile" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>
         </div>
 
         <label>Answer instructions
@@ -88,19 +88,10 @@
 
         <label class="policy-check"><input id="responsibleUse" type="checkbox" required><span>I will follow the interviewer's or meeting host's policies and use CueCard only where assistance is permitted.</span></label>
 
-        <div id="captureModeField" class="capture-mode hidden">
-          <label>Call audio capture
-            <select id="captureMode">
-              <option value="desktop">CueCard desktop app — direct system audio</option>
-              <option value="browser">Chrome only — select a tab or screen</option>
-            </select>
-          </label>
-          <span id="companionStatus">Checking for the CueCard desktop app…</span>
-        </div>
 
         <div id="formError" class="form-error" role="alert"></div>
         <button type="submit" class="primary start-interview">Start AI interview <span>→</span></button>
-        <p class="privacy-note">Your API key stays in this app session. Shared audio and supplied context are sent only to the AI provider you select.</p>
+        <p class="privacy-note">Keys stay in this app session. Enabled audio goes to Deepgram; your question and supplied context go to your selected AI provider.</p>
       </form>
     </section>
 
@@ -129,7 +120,6 @@
   </main>
 
   <script src="live-transcription.js"></script>
-  <script src="mammoth.browser.min.js"></script>
   <script src="renderer.js"></script>
 </body>
 </html>
