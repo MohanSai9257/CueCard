@@ -4,6 +4,8 @@ CueCard is a local Mac and Windows desktop app for live transcription and contex
 
 ## Run locally
 
+For copy-and-paste local setup prompts for **macOS and Windows**, see [SETUP-PROMPTS.md](SETUP-PROMPTS.md). Each person uses their own provider keys and, on Mac, their own local signing certificate.
+
 Install [Node.js 24 or newer](https://nodejs.org/en/download) and npm, then open a terminal in this repository:
 
 ```sh
@@ -33,7 +35,7 @@ Keys are encrypted with Electron safeStorage, whose encryption key is protected 
 
 Open **Create session** and add your role, company, job description, PDF/DOCX résumé, and answer instructions, then start a session. Saved credentials are loaded automatically. In the floating window, enable **System Audio** and/or **My Mic** independently, or type a question in the question box. Select **Answer now** to request a cue. **Previous** and **Next** browse saved cues from this session. **Clear** empties the question. **Call sessions** lists your latest 200 sessions with their saved questions and cues, filters, and transcript viewer. Transcripts are encrypted locally; résumé files and audio recordings are not stored in this history.
 
-**Analyze screen** is a separate, one-time action: clicking it captures a screenshot and sends that screenshot to the selected AI provider. On macOS 14.2+, System Audio uses a bundled native ScreenCaptureKit helper with audio output only. It captures audio from Mac applications without a browser share picker; no video output is registered. macOS Screen & System Audio Recording permission is required. Windows uses Electron loopback capture. Microphone permission is separate. The System/Mic meter below the question shows whether audio is actually arriving; if live transcription misses a question, **Answer now** submits the recent recording to the chosen AI provider for transcription and response.
+**Analyze screen** is a separate, one-time action: clicking it captures a screenshot and sends that screenshot to the selected AI provider. On macOS 14.2+, System Audio uses a bundled native ScreenCaptureKit helper with audio output only. It captures audio from Mac applications without a browser share picker; no video output is registered. macOS Screen & System Audio Recording permission is required. Windows uses Electron loopback capture. Microphone permission is separate. The compact header controls show capture state; the question box is two lines tall, with Clear on the right. If live transcription misses a question, **Answer now** submits the recent recording to the chosen AI provider for transcription and response.
 
 Mac builds require Xcode Command Line Tools (`xcode-select --install`) to compile the bundled helper automatically. For development, compile it with `xcrun swiftc scripts/system-audio.swift -O -o assets/system-audio-arm64` (use `system-audio-x86_64` on Intel). Capture diagnostics, excluding keys and recorded audio, are stored in `~/Library/Logs/CueCard/audio-capture.log`.
 
