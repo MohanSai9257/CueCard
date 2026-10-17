@@ -316,16 +316,15 @@
 
         <section class="question-card">
           <div class="question-heading">
-            <span class="section-label">QUESTION DETECTED</span
-            ><button id="clearQuestion" type="button" title="Clear question">Clear</button>
+            <button id="clearQuestion" type="button" title="Clear question">Clear</button>
           </div>
           <textarea
             id="question"
-            rows="3"
+            rows="2"
             placeholder="Question appears here, or type one yourself…"
             aria-label="Question detected or typed manually"
           ></textarea>
-          <p id="audioStatus" class="audio-status" role="status">Audio off · Transcription idle</p>
+          <p id="audioStatus" class="audio-status sr-only" role="status">Audio off · Transcription idle</p>
         </section>
 
         <section class="answer-card">

@@ -95,10 +95,10 @@ body.mini-mode .appearance-panel {
   }
 }
 body.overlay-shell .window-bar {
-  height: 64px;
+  height: 48px;
 }
 body.overlay-shell main {
-  height: calc(100vh - 64px);
+  height: calc(100vh - 48px);
 }
 body.overlay-shell .interview-view:not(.hidden) {
   display: grid;
@@ -185,8 +185,8 @@ body.overlay-shell .audio-controls {
   display: flex;
 }
 .audio-control {
-  min-width: 64px;
-  height: 58px;
+  min-width: 54px;
+  height: 40px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -202,8 +202,8 @@ body.overlay-shell .audio-controls {
   background: rgba(255, 255, 255, 0.055);
 }
 .audio-control svg {
-  width: 23px;
-  height: 23px;
+  width: 18px;
+  height: 18px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.8;
@@ -240,7 +240,7 @@ body.overlay-shell .audio-controls {
 }
 .audio-divider {
   width: 1px;
-  height: 34px;
+  height: 24px;
   background: var(--line);
 }
 .sr-only {
@@ -524,12 +524,13 @@ kbd {
   background: var(--panel);
 }
 .question-card {
-  padding: 14px 16px;
+  padding: 8px 10px;
+  position: relative;
 }
 .question-heading {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  position: absolute;
+  top: 13px;
+  right: 16px;
 }
 .question-heading button {
   border: 0;
@@ -542,14 +543,14 @@ kbd {
   color: var(--text);
 }
 .question-card textarea {
-  height: 90px;
-  min-height: 72px;
-  margin-top: 8px;
-  padding: 8px;
+  height: calc((var(--cue-text-size, 14px) - 1px) * 2.9 + 18px);
+  min-height: 0;
+  margin-top: 0;
+  padding: 8px 48px 8px 8px;
   color: #dfe5ef;
   font-size: calc(var(--cue-text-size, 14px) - 1px);
   line-height: 1.45;
-  resize: vertical;
+  resize: none;
   overflow-y: auto;
 }
 .question-card textarea.hearing-speech {

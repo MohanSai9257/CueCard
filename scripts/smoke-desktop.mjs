@@ -164,11 +164,31 @@ try {
   if (!live.visible || live.audioButtons !== 2 || !live.questionHint.includes('Enable') || !live.screenButton)
     throw new Error(`Overlay failed: ${JSON.stringify(live)}`);
   await probePrivacy('overlay');
+  const compactLayout = (
+    await evaluate(
+      overlay,
+      `(() => {
+      const question = document.querySelector('#question');
+      const style = getComputedStyle(question);
+      const lines = (question.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom)) / parseFloat(style.lineHeight);
+      return { lines, headingRemoved: !document.querySelector('.question-heading .section-label'), statusHidden: getComputedStyle(document.querySelector('#audioStatus')).display === 'none', toolbarHeight: document.querySelector('.window-bar').getBoundingClientRect().height, audioHeight: document.querySelector('.audio-control').getBoundingClientRect().height };
+    })()`,
+    )
+  ).result.value;
+  if (
+    Math.abs(compactLayout.lines - 2) > 0.1 ||
+    !compactLayout.headingRemoved ||
+    !compactLayout.statusHidden ||
+    compactLayout.toolbarHeight !== 48 ||
+    compactLayout.audioHeight !== 40
+  )
+    throw new Error('Compact layout failed: ' + JSON.stringify(compactLayout));
+  console.log(JSON.stringify({ compactLayout }));
   const textSizing = (
     await evaluate(
       overlay,
       `(() => {
-    const geometry = () => JSON.stringify({ width:outerWidth, height:outerHeight, viewport:[innerWidth,innerHeight], boxes:['.window-bar','.question-card','#question','.answer-card','.answer-nav'].map(selector=>{const box=document.querySelector(selector).getBoundingClientRect();return [box.x,box.y,box.width,box.height];}) });
+    const geometry = () => JSON.stringify({ width:outerWidth, height:outerHeight, viewport:[innerWidth,innerHeight], boxes:['.window-bar','.answer-nav'].map(selector=>{const box=document.querySelector(selector).getBoundingClientRect();return [box.x,box.y,box.width,box.height];}) });
     const before = geometry();
     const toolbarFont = getComputedStyle(document.querySelector('#zoomIn')).fontSize;
     for(let i=0;i<30;i++) document.querySelector('#zoomIn').click();
