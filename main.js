@@ -6,8 +6,6 @@ const {
   globalShortcut,
   ipcMain,
   Menu,
-  Tray,
-  nativeImage,
   screen,
   shell,
   systemPreferences,
@@ -70,7 +68,7 @@ let setupWindow;
 let overlayWindow;
 let expandedBounds;
 let pendingSession = null;
-let tray;
+let showShortcutRegistered = false;
 let sessionSequence = 0;
 let nativeAudioProcess = null;
 // Apply before any CueCard window is shown, including future windows and dialogs
@@ -136,18 +134,6 @@ function configureWindow(window) {
 function createWindows() {
   if (process.platform === 'darwin') {
     app.dock?.hide();
-    tray = new Tray(
-      nativeImage.createFromPath(path.join(__dirname, 'assets/icon.png')).resize({ width: 18, height: 18 }),
-    );
-    tray.setToolTip('CueCard');
-    tray.setContextMenu(
-      Menu.buildFromTemplate([
-        { label: 'Show CueCard', click: showAssistant },
-        { label: 'Session settings', click: showSetup },
-        { type: 'separator' },
-        { label: 'Quit CueCard', click: () => app.quit() },
-      ]),
-    );
   }
   const webPreferences = {
     preload: path.join(__dirname, 'preload.js'),
@@ -262,6 +248,7 @@ function createWindows() {
   );
   globalShortcut.register('CommandOrControl+Shift+A', () => send('force-answer'));
   globalShortcut.register('CommandOrControl+Shift+S', () => send('toggle-capture'));
+  showShortcutRegistered = globalShortcut.register('CommandOrControl+Shift+H', showAssistant);
 }
 function trusted(event) {
   return event.sender === setupWindow?.webContents || event.sender === overlayWindow?.webContents;
@@ -273,7 +260,8 @@ ipcMain.handle('capture-protection-status', (event) => {
     overlay: overlayWindow.isContentProtected(),
     platform: process.platform,
     dockVisible: process.platform === 'darwin' ? app.dock.isVisible() : null,
-    menuBarAvailable: !!tray && !tray.isDestroyed(),
+    menuBarAvailable: false,
+    showShortcutRegistered,
   };
 });
 ipcMain.handle('pick-resume', async (event) => {

@@ -79,7 +79,10 @@ try {
   const protection = (await evaluate(setup, `window.cuecard.captureProtectionStatus()`)).result.value;
   if (!protection.setup || !protection.overlay)
     throw new Error(`Capture protection is not on by default: ${JSON.stringify(protection)}`);
-  if (protection.platform === 'darwin' && (protection.dockVisible || !protection.menuBarAvailable))
+  if (
+    protection.platform === 'darwin' &&
+    (protection.dockVisible || protection.menuBarAvailable || !protection.showShortcutRegistered)
+  )
     throw new Error(`Dock/menu-bar behavior failed: ${JSON.stringify(protection)}`);
   console.log(JSON.stringify({ captureProtection: protection }));
   let privacyProbe;
