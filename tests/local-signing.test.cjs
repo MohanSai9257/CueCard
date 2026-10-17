@@ -10,6 +10,15 @@ const {
 } = require('../scripts/local-signing.cjs');
 const hash = 'A'.repeat(40);
 const certificate = { hash, name: 'Apple Development: Test Developer (TEAMTEST)' };
+test('Mac app and helpers include hardened-runtime microphone access', () => {
+  const { readFileSync } = require('node:fs');
+  const path = require('node:path');
+  const pkg = require('../package.json');
+  for (const field of ['entitlements', 'entitlementsInherit']) {
+    const plist = readFileSync(path.join(__dirname, '..', pkg.build.mac[field]), 'utf8');
+    assert.match(plist, /<key>com\.apple\.security\.device\.audio-input<\/key>\s*<true\s*\/>/);
+  }
+});
 test('accepts only valid Apple application signing identities', () => {
   assert.deepEqual(
     parseIdentities(`  1) ${hash} "${certificate.name}"\n  2) ${'B'.repeat(40)} "unrelated certificate"`),

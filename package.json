@@ -68,6 +68,8 @@
       "assets/system-audio-*"
     ],
     "mac": {
+      "entitlements": "scripts/entitlements.mac.plist",
+      "entitlementsInherit": "scripts/entitlements.mac.plist",
       "category": "public.app-category.productivity",
       "icon": "assets/icon.png",
       "artifactName": "CueCard-${version}-mac-${arch}.${ext}",
