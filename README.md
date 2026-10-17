@@ -8,11 +8,22 @@ Install [Node.js 24 or newer](https://nodejs.org/en/download) and npm, then open
 
 ```sh
 npm ci
-npx electron-builder --mac dmg --arm64 --publish never
-open release/mac-arm64/CueCard.app
+npm run signing:check
+npm run install:local
+open "$HOME/Applications/CueCard.app"
 ```
 
-Use the `release/mac-arm64/CueCard.app` that was built locally, not the downloaded DMG. On macOS 14.2+, Electron's system-audio capture needs `NSAudioCaptureUsageDescription` in the running app's Info.plist; launching `npm start` from Terminal can use the parent app's permissions and leave a silent audio track. `npm start` is useful for UI development, but the packaged local app is the audio-test target. On an Intel Mac, build with `npx electron-builder --mac dmg --x64 --publish never` and open `release/mac/CueCard.app`. The GitHub preview DMGs are unsigned and may be rejected by Gatekeeper. Do not disable macOS security protections to open them.
+Use the installed `Applications/CueCard.app` built by `install:local`, not an old DMG or a copy in Trash. On macOS 14.2+, Electron's system-audio capture needs `NSAudioCaptureUsageDescription` in the running app's Info.plist; launching `npm start` from Terminal can use the parent app's permissions and leave a silent audio track. `npm start` is useful for UI development, but the packaged local app is the audio-test target. The local build command chooses the current Mac architecture automatically. Preview DMGs are not Developer ID-signed and may be rejected by Gatekeeper. Do not disable macOS security protections to open them.
+
+### Stable local signing and permission persistence
+
+The local app version stays **1.3.2** until intentionally changed. Keeping the version number alone does not preserve permissions: macOS also checks the signing identity. Rebuilding an ad-hoc app can invalidate screen/audio capture approval and trigger Keychain prompts even when System Settings still shows CueCard enabled. See [Apple's confirmation](https://developer.apple.com/forums/thread/819406) and [Electron's signing guidance](https://www.electronjs.org/docs/latest/tutorial/code-signing).
+
+For local development, install Xcode from Apple, sign into your Apple Account in **Xcode → Settings → Accounts**, select your team, then **Manage Certificates → + → Apple Development**. Authentication and agreement acceptance must be completed by you. A Personal Team may be available without paid membership; account access and certificate issuance are controlled by Apple. A development certificate is for local use, not trusted public distribution.
+
+`npm run signing:check` checks for a valid Apple application signing identity. `npm run build:local` (also `build:mac`) refuses ad-hoc fallback and pins the selected certificate fingerprint, version, bundle ID and installation path in the ignored local `.cuecard-signing.json` file. If multiple identities exist, set `CUECARD_SIGN_IDENTITY` to the intended SHA-1 fingerprint for the first build. Later builds refuse accidental identity/version/path changes. Do not commit signing certificates, private keys, credentials, or that machine-local pin file.
+
+`npm run install:local` verifies the new signature and app identity before quitting/replacing the current app. It installs at `~/Applications/CueCard.app`, moves the previous app to Trash, and leaves encrypted user data untouched. If signing or verification fails, the installed app is left in place. The first transition to stable signing can require one new OS approval; later rebuilds reuse that identity. OS-mandated periodic confirmations, certificate expiry and revoked permissions are outside CueCard's control. No TCC database is edited or reset.
 
 Open **API keys** in the sidebar and save your Deepgram key and a key for **Claude**, Google Gemini, Groq, or OpenAI. For Claude, use [Anthropic Console → API keys](https://platform.claude.com/settings/keys), then choose Claude and a model when creating a session. The default is Haiku for low-latency cues; Sonnet and Opus are also available. A Claude chat subscription is separate from API billing.
 
@@ -28,6 +39,10 @@ The down-arrow collapses the overlay into a circular horse icon. Drag the icon t
 
 The **+** and **−** controls change only question and answer text size. They do not zoom the page or resize the floating window. Drag the window edges to change its dimensions.
 
+The **◐ appearance button** controls floating-panel transparency. The background starts at 30% opacity; drag the slider down to see more of the application behind it, or up for more contrast. Only this non-sensitive preference is saved locally; text remains opaque. CueCard always receives clicks normally; there is no click-through mode. Setup and API-key pages remain opaque and interactive.
+
+On macOS, CueCard runs without a Dock or Command-Tab entry. A small horse icon in the top menu bar provides **Show CueCard**, **Session settings**, and **Quit CueCard**, so you can reopen a minimized window without the Dock. The floating window and compact horse still work normally. If you previously pinned an older copy in the Dock, remove that pinned shortcut manually; the app does not edit your Dock preferences.
+
 To return for a second interview, open **Call sessions → Continue session**. Review or update the restored résumé text, job description, role, company, model, and instructions, then select **Continue session**. Earlier cues stay available through Previous/Next, and new cues append to the same encrypted transcript with round labels. Current saved API keys are used. Older sessions from before version 1.2.2 did not store résumé/JD context; add those missing details once when continuing them. Résumé text is retained encrypted for continuation; the original PDF/DOCX file is not copied into session history.
 
 Only enabled audio is sent to Deepgram for live transcription. The selected AI provider receives the question and context you supplied when you request an answer. If live text is unavailable, Answer now submits a bounded recent WAV recording: Claude uses Deepgram for transcription, Gemini accepts the recording, and OpenAI/Groq use their transcription endpoints. Recordings are not saved to disk. Keys and session transcripts persist encrypted on this device; active session context stays in app memory. Provider limits or charges may apply. Use the assistant only where permitted.
@@ -40,13 +55,16 @@ Only enabled audio is sent to Deepgram for live transcription. The selected AI p
 - `npm run lint`: static error and unused-code checks.
 - `npm test`: isolated provider, audio, transcription, document parsing and vault regression tests; no real keys or billable requests.
 - `npm run format`: consistent source formatting.
-- `npm run build:mac`: build Apple silicon and Intel Mac apps and DMGs on a Mac.
+- `npm run signing:check`: verify a stable Apple application signing certificate is available.
+- `npm run build:mac` / `npm run build:local`: certificate-pinned Mac build for the current architecture.
+- `npm run install:local`: verified same-version replacement at the fixed local app path; previous app goes to Trash.
+- `npm run build:mac:preview`: explicit ad-hoc preview builds for Apple silicon and Intel; not suitable for preserving permissions across rebuilds.
 - `npm run build:win`: build a Windows x64 installer on Windows.
 - `node scripts/smoke-desktop.mjs /absolute/path/to/CueCard`: desktop setup/session smoke test without live audio or provider calls.
 - `node scripts/smoke-workspace.mjs /absolute/path/to/CueCard`: isolated credential encryption, restart persistence, key removal, session history and transcript rendering checks. Uses test credentials only.
 - `node scripts/smoke-documents.mjs /absolute/path/to/CueCard`: verifies PDF and DOCX extraction in the packaged app's worker. Uses synthetic documents and a temporary main-process debugger, closed when the test exits.
 
-The app can be shared as source code so another person can build and run it locally. Mac builds use an ad-hoc signature for local integrity, not a trusted Developer ID certificate. Distributing a Mac app that opens normally on other computers requires overriding `mac.identity` with your Developer ID identity and completing Apple notarization. Windows runtime audio capture still needs validation on a Windows PC.
+The app can be shared as source code so another person can build and run it locally with their own development certificate. Distributing a Mac app that opens normally on other computers requires Developer ID signing and Apple notarization; the local-only script deliberately does not notarize. Windows runtime audio capture still needs validation on a Windows PC.
 
 ## Release quality and limitations
 

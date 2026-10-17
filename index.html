@@ -44,6 +44,15 @@
         </button>
       </div>
       <div class="window-actions">
+        <button
+          id="appearanceBtn"
+          title="Background transparency"
+          aria-label="Floating panel appearance"
+          aria-expanded="false"
+          aria-controls="appearancePanel"
+        >
+          ◐
+        </button>
         <button id="settingsBtn" title="End session and return to settings" aria-label="Session settings">
           ⚙
         </button>
@@ -53,6 +62,11 @@
         <button id="closeBtn" title="Quit">×</button>
       </div>
     </header>
+    <section id="appearancePanel" class="appearance-panel hidden" aria-label="Floating panel appearance">
+      <label for="panelOpacity">Background opacity <output id="opacityValue">30%</output></label>
+      <input id="panelOpacity" type="range" min="10" max="95" value="30" step="5" />
+      <p>Lower opacity lets you see the app behind CueCard. Text stays solid.</p>
+    </section>
     <button
       id="miniRestore"
       class="mini-restore"

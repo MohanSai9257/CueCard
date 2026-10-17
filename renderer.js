@@ -14,6 +14,43 @@ const answerEl = $('#answer');
 const questionEl = $('#question');
 const statusEl = $('#status');
 const isOverlay = new URLSearchParams(location.search).has('overlay');
+const opacityInput = $('#panelOpacity');
+function setPanelOpacity(value) {
+  const number = Number(value);
+  const opacity = Number.isFinite(number) ? Math.max(10, Math.min(95, number)) : 30;
+  document.body.style.setProperty('--overlay-opacity', String(opacity / 100));
+  opacityInput.value = String(opacity);
+  $('#opacityValue').textContent = `${opacity}%`;
+}
+if (isOverlay) {
+  try {
+    setPanelOpacity(localStorage.getItem('cuecard.overlay.opacity') ?? 30);
+  } catch {
+    setPanelOpacity(30);
+  }
+}
+opacityInput.addEventListener('input', () => {
+  setPanelOpacity(opacityInput.value);
+  try {
+    localStorage.setItem('cuecard.overlay.opacity', opacityInput.value);
+  } catch {
+    /* Preference persistence is optional. */
+  }
+});
+function closeAppearance() {
+  $('#appearancePanel').classList.add('hidden');
+  $('#appearanceBtn').setAttribute('aria-expanded', 'false');
+}
+$('#appearanceBtn').addEventListener('click', () => {
+  const hidden = $('#appearancePanel').classList.toggle('hidden');
+  $('#appearanceBtn').setAttribute('aria-expanded', String(!hidden));
+});
+document.addEventListener('pointerdown', (event) => {
+  if (!event.target.closest('#appearancePanel, #appearanceBtn')) closeAppearance();
+});
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') closeAppearance();
+});
 
 let resume = null;
 let resumeSessionId = null;
@@ -674,6 +711,7 @@ function forceAnswer() {
 }
 
 function stopInterview(showSetup = true) {
+  closeAppearance();
   window.cuecard.cancelAnswer(activeSessionId);
   config = null;
   document.body.classList.remove('mini-mode');

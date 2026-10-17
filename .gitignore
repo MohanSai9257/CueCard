@@ -3,10 +3,14 @@ release/
 .DS_Store
 *.log
 .env
+.cuecard-signing.json
 .env.*
 !.env.example
 *.enc
 *.pem
+*.p12
+*.pfx
+*.key
 coverage/
 test-results/
 assets/system-audio-arm64

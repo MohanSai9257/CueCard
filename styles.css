@@ -41,6 +41,59 @@ body {
 body.overlay-shell .setup-view {
   display: none !important;
 }
+body.overlay-shell {
+  --overlay-opacity: 0.3;
+  --bg: rgb(8 11 16 / var(--overlay-opacity));
+  --panel: rgb(255 255 255 / 0.025);
+  --panel-2: rgb(8 11 16 / 0.08);
+  --muted: #c0cada;
+  box-shadow: 0 8px 30px rgb(0 0 0 / 0.16);
+}
+body.overlay-shell .answer,
+body.overlay-shell .question-card textarea,
+body.overlay-shell .audio-status,
+body.overlay-shell .history-hint {
+  text-shadow:
+    0 1px 3px #000,
+    0 0 7px rgb(0 0 0 / 0.8);
+}
+.appearance-panel {
+  position: fixed;
+  top: 66px;
+  right: 12px;
+  width: min(320px, calc(100vw - 24px));
+  z-index: 20;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #101a2b;
+  box-shadow: 0 8px 30px #0008;
+  font-size: 12px;
+  -webkit-app-region: no-drag;
+}
+.appearance-panel label {
+  display: flex;
+  justify-content: space-between;
+}
+.appearance-panel input {
+  width: 100%;
+  accent-color: var(--accent);
+  margin: 12px 0;
+}
+.appearance-panel p {
+  color: #b7c6dc;
+  line-height: 1.5;
+  font-size: 11px;
+}
+body:not(.overlay-shell) .appearance-panel,
+body.mini-mode .appearance-panel {
+  display: none !important;
+}
+@media (max-width: 500px) {
+  body.overlay-shell .brand > span {
+    display: none;
+  }
+}
 body.overlay-shell .window-bar {
   height: 64px;
 }

@@ -8,13 +8,15 @@ if (!executable) throw new Error('Pass the packaged CueCard executable path.');
 if (process.argv.includes('--installed-profile'))
   throw new Error('Smoke checks use isolated profiles to protect saved user credentials.');
 const profile = await mkdtemp(join(tmpdir(), 'cuecard-smoke-'));
+const debugPort = process.argv.includes('--source-app') ? 9328 : 9324;
 const child = spawn(
   executable,
   [
-    '--remote-debugging-port=9324',
+    ...(process.argv.includes('--source-app') ? [process.cwd()] : []),
+    `--remote-debugging-port=${debugPort}`,
     ...(process.argv.includes('--installed-profile') ? [] : [`--user-data-dir=${profile}`]),
   ],
-  { stdio: 'ignore' },
+  { stdio: process.argv.includes('--verbose') ? 'inherit' : 'ignore' },
 );
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const sockets = [];
@@ -54,7 +56,7 @@ try {
   let pages;
   for (let i = 0; i < 50; i++) {
     try {
-      pages = await (await fetch('http://127.0.0.1:9324/json/list')).json();
+      pages = await (await fetch(`http://127.0.0.1:${debugPort}/json/list`)).json();
     } catch {}
     if (pages?.filter((x) => x.type === 'page' && x.url.includes('index.html')).length === 2) break;
     await pause(200);
@@ -77,6 +79,8 @@ try {
   const protection = (await evaluate(setup, `window.cuecard.captureProtectionStatus()`)).result.value;
   if (!protection.setup || !protection.overlay)
     throw new Error(`Capture protection is not on by default: ${JSON.stringify(protection)}`);
+  if (protection.platform === 'darwin' && (protection.dockVisible || !protection.menuBarAvailable))
+    throw new Error(`Dock/menu-bar behavior failed: ${JSON.stringify(protection)}`);
   console.log(JSON.stringify({ captureProtection: protection }));
   let privacyProbe;
   async function probePrivacy(mode) {
@@ -184,6 +188,32 @@ try {
   )
     throw new Error(`Text sizing changed window/layout: ${JSON.stringify(textSizing)}`);
   console.log(JSON.stringify({ textSizing }));
+  const appearance = (
+    await evaluate(
+      overlay,
+      `(async () => {
+    const background = getComputedStyle(document.body).backgroundColor;
+    const textOpacity = getComputedStyle(answerEl).opacity;
+    document.querySelector('#appearanceBtn').click();
+    const opened = !document.querySelector('#appearancePanel').classList.contains('hidden');
+    const range = document.querySelector('#panelOpacity'); range.value='15'; range.dispatchEvent(new Event('input', {bubbles:true}));
+    const lower = getComputedStyle(document.body).backgroundColor;
+    const interactive = !document.querySelector('#clickThroughToggle') && !('setClickThrough' in window.cuecard);
+    range.value='30'; range.dispatchEvent(new Event('input', {bubbles:true})); closeAppearance();
+    return {background, lower, textOpacity, opened, interactive, stored:localStorage.getItem('cuecard.overlay.opacity')};
+  })()`,
+    )
+  ).result.value;
+  if (
+    !appearance.background.includes('0.3') ||
+    !appearance.lower.includes('0.15') ||
+    appearance.textOpacity !== '1' ||
+    !appearance.opened ||
+    !appearance.interactive ||
+    appearance.stored !== '30'
+  )
+    throw new Error('Appearance/interactivity failed: ' + JSON.stringify(appearance));
+  console.log(JSON.stringify({ appearance }));
   if (process.argv.includes('--manual-system-probe')) {
     await evaluate(overlay, `config.transcriptionKey = ''`);
     console.log(JSON.stringify({ manualSystemProbeReady: true, pid: child.pid }));

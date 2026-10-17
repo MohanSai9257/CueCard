@@ -6,6 +6,8 @@ const {
   globalShortcut,
   ipcMain,
   Menu,
+  Tray,
+  nativeImage,
   screen,
   shell,
   systemPreferences,
@@ -68,6 +70,7 @@ let setupWindow;
 let overlayWindow;
 let expandedBounds;
 let pendingSession = null;
+let tray;
 let sessionSequence = 0;
 let nativeAudioProcess = null;
 // Apply before any CueCard window is shown, including future windows and dialogs
@@ -132,8 +135,19 @@ function configureWindow(window) {
 }
 function createWindows() {
   if (process.platform === 'darwin') {
-    app.dock?.setIcon(path.join(__dirname, 'assets/icon.png'));
-    app.dock?.show();
+    app.dock?.hide();
+    tray = new Tray(
+      nativeImage.createFromPath(path.join(__dirname, 'assets/icon.png')).resize({ width: 18, height: 18 }),
+    );
+    tray.setToolTip('CueCard');
+    tray.setContextMenu(
+      Menu.buildFromTemplate([
+        { label: 'Show CueCard', click: showAssistant },
+        { label: 'Session settings', click: showSetup },
+        { type: 'separator' },
+        { label: 'Quit CueCard', click: () => app.quit() },
+      ]),
+    );
   }
   const webPreferences = {
     preload: path.join(__dirname, 'preload.js'),
@@ -240,7 +254,10 @@ function createWindows() {
         ],
       },
       { role: 'editMenu' },
-      { label: 'Window', submenu: [{ label: 'Show assistant', click: showAssistant }, { role: 'minimize' }] },
+      {
+        label: 'Window',
+        submenu: [{ label: 'Show assistant', click: showAssistant }, { role: 'minimize' }],
+      },
     ]),
   );
   globalShortcut.register('CommandOrControl+Shift+A', () => send('force-answer'));
@@ -255,6 +272,8 @@ ipcMain.handle('capture-protection-status', (event) => {
     setup: setupWindow.isContentProtected(),
     overlay: overlayWindow.isContentProtected(),
     platform: process.platform,
+    dockVisible: process.platform === 'darwin' ? app.dock.isVisible() : null,
+    menuBarAvailable: !!tray && !tray.isDestroyed(),
   };
 });
 ipcMain.handle('pick-resume', async (event) => {
