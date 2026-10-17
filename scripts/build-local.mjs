@@ -50,6 +50,10 @@ try {
       await writeFile(pinPath, JSON.stringify(pin, null, 2) + '\n', { mode: 0o600, flag: 'wx' });
     }
     const arch = process.arch === 'arm64' ? 'arm64' : 'x64';
+    const commandLineTools = '/Library/Developer/CommandLineTools';
+    const developerDirectory =
+      process.env.DEVELOPER_DIR ||
+      ((await exists(path.join(commandLineTools, 'usr', 'bin', 'swiftc'))) ? commandLineTools : undefined);
     execFileSync(
       path.join(root, 'node_modules', '.bin', 'electron-builder'),
       [
@@ -63,7 +67,11 @@ try {
         '--config.mac.notarize=false',
         '--config.forceCodeSigning=true',
       ],
-      { cwd: root, stdio: 'inherit' },
+      {
+        cwd: root,
+        stdio: 'inherit',
+        env: { ...process.env, ...(developerDirectory ? { DEVELOPER_DIR: developerDirectory } : {}) },
+      },
     );
     const built = path.join(root, 'release', arch === 'arm64' ? 'mac-arm64' : 'mac', 'CueCard.app');
     execFileSync('/usr/bin/codesign', ['--verify', '--deep', '--strict', built]);
