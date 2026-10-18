@@ -381,6 +381,19 @@ try {
   if (Object.values(retryFlow).some((value) => value !== true))
     throw new Error('Question retry regression: ' + JSON.stringify(retryFlow));
   console.log(JSON.stringify({ retryFlow }));
+  for (const [name, page] of [
+    ['setup', setup],
+    ['overlay', overlay],
+  ]) {
+    const titles = (
+      await evaluate(
+        page,
+        `Array.from(document.querySelectorAll('[title]')).map(element => element.id || element.tagName)`,
+      )
+    ).result.value;
+    if (titles.length) throw new Error(name + ' still has hover tooltips: ' + JSON.stringify(titles));
+  }
+  console.log(JSON.stringify({ hoverTooltips: false }));
   await evaluate(overlay, `document.querySelector('#hideBtn').click()`);
   await pause(200);
   const compact = (await evaluate(overlay, `document.body.classList.contains('mini-mode')`)).result.value;

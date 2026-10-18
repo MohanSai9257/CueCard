@@ -19,7 +19,7 @@
           id="systemAudioToggle"
           class="audio-control muted"
           type="button"
-          title="System audio is inactive"
+          aria-label="System audio is inactive"
           aria-pressed="false"
         >
           <svg class="system-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -33,7 +33,7 @@
           id="micAudioToggle"
           class="audio-control mic-control muted"
           type="button"
-          title="Microphone is inactive"
+          aria-label="Microphone is inactive"
           aria-pressed="false"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -46,20 +46,17 @@
       <div class="window-actions">
         <button
           id="appearanceBtn"
-          title="Background transparency"
           aria-label="Floating panel appearance"
           aria-expanded="false"
           aria-controls="appearancePanel"
         >
           ◐
         </button>
-        <button id="settingsBtn" title="End session and return to settings" aria-label="Session settings">
-          ⚙
-        </button>
-        <button id="zoomOut" title="Decrease text size" aria-label="Decrease text size">−</button>
-        <button id="zoomIn" title="Increase text size" aria-label="Increase text size">+</button>
-        <button id="hideBtn" title="Collapse to horse icon" aria-label="Collapse CueCard">⌄</button>
-        <button id="closeBtn" title="Quit">×</button>
+        <button id="settingsBtn" aria-label="Session settings">⚙</button>
+        <button id="zoomOut" aria-label="Decrease text size">−</button>
+        <button id="zoomIn" aria-label="Increase text size">+</button>
+        <button id="hideBtn" aria-label="Collapse CueCard">⌄</button>
+        <button id="closeBtn" aria-label="Quit">×</button>
       </div>
     </header>
     <section id="appearancePanel" class="appearance-panel hidden" aria-label="Floating panel appearance">
@@ -67,13 +64,7 @@
       <input id="panelOpacity" type="range" min="10" max="95" value="30" step="5" />
       <p>Lower opacity lets you see the app behind CueCard. Text stays solid.</p>
     </section>
-    <button
-      id="miniRestore"
-      class="mini-restore"
-      type="button"
-      title="Expand CueCard"
-      aria-label="Expand CueCard"
-    >
+    <button id="miniRestore" class="mini-restore" type="button" aria-label="Expand CueCard">
       <img src="assets/icon.png" alt="" />
     </button>
 
@@ -89,23 +80,23 @@
           </div>
           <div class="sidebar-brand">
             <img src="assets/icon.png" alt="CueCard horse" /><strong>CueCard</strong
-            ><button id="collapseSidebar" title="Collapse sidebar" aria-label="Collapse sidebar">«</button>
+            ><button id="collapseSidebar" aria-label="Collapse sidebar">«</button>
           </div>
           <nav aria-label="Main navigation">
-            <button class="nav-item active" data-page="create" title="Create session">
+            <button class="nav-item active" data-page="create">
               <span class="nav-symbol"
                 ><svg viewBox="0 0 24 24" aria-hidden="true">
                   <circle cx="12" cy="12" r="9" />
                   <path d="M12 7v10M7 12h10" /></svg></span
               ><span>Create session</span>
             </button>
-            <button class="nav-item" data-page="sessions" title="Call sessions">
+            <button class="nav-item" data-page="sessions">
               <span class="nav-symbol"
                 ><svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M14 3H6a2 2 0 0 0-2 2v15h16V9zM14 3v6h6M8 13h8M8 17h6" /></svg></span
               ><span>Call sessions</span>
             </button>
-            <button class="nav-item" data-page="keys" title="API keys">
+            <button class="nav-item" data-page="keys">
               <span class="nav-symbol"
                 ><svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M14 13a6 6 0 1 0-3-3L3 18v3h4v-3h3z" />
@@ -316,7 +307,7 @@
 
         <section class="question-card">
           <div class="question-heading">
-            <button id="clearQuestion" type="button" title="Clear question">Clear</button>
+            <button id="clearQuestion" type="button" aria-label="Clear question">Clear</button>
           </div>
           <textarea
             id="question"
@@ -341,7 +332,7 @@
 
         <footer class="answer-nav">
           <button id="previousAnswer">← <span>Previous</span></button>
-          <button id="analyzeScreen" type="button" title="Capture and analyze the current screen once">
+          <button id="analyzeScreen" type="button" aria-label="Capture and analyze the current screen once">
             Analyze screen
           </button>
           <button id="answerNow" class="answer-now">Answer now</button>

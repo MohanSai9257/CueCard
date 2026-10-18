@@ -220,9 +220,12 @@ async function startOverlaySession(sessionConfig) {
       : [];
     historyIndex = history.length - 1;
     $('#analyzeScreen').disabled = !window.CueProviders[config.provider].vision;
-    $('#analyzeScreen').title = window.CueProviders[config.provider].vision
-      ? 'Capture and analyze the current screen once'
-      : 'Choose Claude, Gemini, or OpenAI for screen analysis';
+    $('#analyzeScreen').setAttribute(
+      'aria-label',
+      window.CueProviders[config.provider].vision
+        ? 'Capture and analyze the current screen once'
+        : 'Choose Claude, Gemini, or OpenAI for screen analysis',
+    );
     renderHistory();
     questionEl.value = '';
     questionEl.placeholder = 'Enable System Audio or My Mic, then ask a question—or type it here.';
@@ -420,7 +423,10 @@ function setAudioControl(button, tracks, label) {
   const active = available && tracks.some((track) => track.enabled);
   button.classList.toggle('muted', !active);
   button.setAttribute('aria-pressed', String(active));
-  button.title = available ? `${active ? 'Mute' : 'Unmute'} ${label}` : `${label} is unavailable`;
+  button.setAttribute(
+    'aria-label',
+    available ? `${active ? 'Mute' : 'Unmute'} ${label}` : `${label} is unavailable`,
+  );
 }
 
 function updateAudioControls() {
@@ -664,9 +670,14 @@ function renderHistory() {
   $('#answerPosition').textContent = `${history.length ? historyIndex + 1 : 0} / ${history.length}`;
   $('#previousAnswer').classList.toggle('at-edge', historyIndex <= 0);
   $('#nextAnswer').classList.toggle('at-edge', historyIndex < 0 || historyIndex >= history.length - 1);
-  $('#previousAnswer').title = historyIndex <= 0 ? 'No earlier saved cue' : 'Show previous saved cue';
-  $('#nextAnswer').title =
-    historyIndex < 0 || historyIndex >= history.length - 1 ? 'No later saved cue' : 'Show next saved cue';
+  $('#previousAnswer').setAttribute(
+    'aria-label',
+    historyIndex <= 0 ? 'No earlier saved cue' : 'Show previous saved cue',
+  );
+  $('#nextAnswer').setAttribute(
+    'aria-label',
+    historyIndex < 0 || historyIndex >= history.length - 1 ? 'No later saved cue' : 'Show next saved cue',
+  );
   $('#historyHint').textContent =
     history.length === 0
       ? 'No saved cues yet. Answer a question to start history.'
