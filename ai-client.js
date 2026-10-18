@@ -34,6 +34,20 @@ async function requestJSON(url, options, { fetchImpl = fetch, signal, secrets = 
     for (const secret of secrets.filter(Boolean)) message = message.split(secret).join('[redacted]');
     const error = new Error(message);
     if (response.status === 429) {
+      const code = json.error?.code;
+      const billingCodes = [
+        'insufficient_quota',
+        'billing_hard_limit_reached',
+        'organization_spend_limit_exceeded',
+        'organization_usage_limit_exceeded',
+        'billing_not_active',
+        'credits_exhausted',
+      ];
+      if (billingCodes.includes(code) || json.error?.type === 'insufficient_quota') {
+        error.billingRequired = true;
+        error.message = `API credits or an account spending limit prevents this request. Check the provider's API billing and project limits; waiting or replacing a valid key will not fix it. ${message}`;
+        throw error;
+      }
       const retry =
         json.error?.details?.find((item) => item.retryDelay)?.retryDelay ||
         response.headers?.get('retry-after');

@@ -336,6 +336,51 @@ try {
     !navigation.edge.includes('latest')
   )
     throw new Error(`Generated cue navigation failed: ${JSON.stringify(navigation)}`);
+  const retryFlow = (
+    await evaluate(
+      overlay,
+      `(async () => {
+    const original = requestCue;
+    const savedHistory = [...history]; const savedIndex = historyIndex;
+    try {
+      requestCue = async () => { const error = new Error('Temporary limit'); error.retrySeconds = 1; throw error; };
+      await processAudio('Old question');
+      const saved = retryRecording === 'Old question';
+      questionEl.value = 'New question'; questionEl.dispatchEvent(new Event('input', {bubbles:true}));
+      const replaced = retryRecording === null && retryAfter > Date.now();
+      retryAfter = 0; clearInterval(cooldownTimer);
+      let submitted;
+      requestCue = async input => { submitted = input.question; return {question:input.question, answer:'New answer'}; };
+      forceAnswer(); await new Promise(resolve => setTimeout(resolve, 100));
+      const latestAnswered = submitted === 'New question' && answerEl.textContent === 'New answer';
+      let release;
+      requestCue = () => new Promise(resolve => { release = resolve; });
+      const pending = processAudio('Earlier request');
+      await new Promise(resolve => setTimeout(resolve, 0));
+      questionEl.value = 'Next draft'; questionEl.dispatchEvent(new Event('input', {bubbles:true}));
+      release({question:'Earlier request',answer:'Earlier answer'}); await pending;
+      const draftPreserved = questionEl.value === 'Next draft' && questionManuallyEdited;
+      const oldRecorder = recorder; const oldSpeech = speechStartedAt; const oldLive = liveTranscription; const oldKey = config.transcriptionKey;
+      let freshAudioSelected = false;
+      try {
+        retryRecording = null; questionEl.value = 'Earlier displayed question'; questionManuallyEdited = false;
+        liveTranscription = null; config.transcriptionKey = ''; speechStartedAt = performance.now();
+        recorder = {state:'recording', stop(){ freshAudioSelected = true; }};
+        forceAnswer();
+      } finally { recorder = oldRecorder; speechStartedAt = oldSpeech; liveTranscription = oldLive; config.transcriptionKey = oldKey; }
+      retryRecording = 'Old audio'; document.querySelector('#clearQuestion').click();
+      return {saved, replaced, latestAnswered, draftPreserved, freshAudioSelected, clearDropsRetry:retryRecording === null};
+    } finally {
+      requestCue = original; clearInterval(cooldownTimer); retryAfter = 0; retryRecording = null;
+      history = savedHistory; historyIndex = savedIndex; renderHistory();
+      document.querySelector('#answerNow').disabled = false; document.querySelector('#answerNow').textContent = 'Answer now';
+    }
+  })()`,
+    )
+  ).result.value;
+  if (Object.values(retryFlow).some((value) => value !== true))
+    throw new Error('Question retry regression: ' + JSON.stringify(retryFlow));
+  console.log(JSON.stringify({ retryFlow }));
   await evaluate(overlay, `document.querySelector('#hideBtn').click()`);
   await pause(200);
   const compact = (await evaluate(overlay, `document.body.classList.contains('mini-mode')`)).result.value;

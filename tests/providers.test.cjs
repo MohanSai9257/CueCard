@@ -92,6 +92,28 @@ test('quota errors redact keys and expose bounded retry timing', async () => {
     (error) => error.message === 'bad [redacted]' && error.retrySeconds === 57,
   );
 });
+test('billing quota errors never offer a timed retry', async () => {
+  for (const code of [
+    'insufficient_quota',
+    'organization_spend_limit_exceeded',
+    'organization_usage_limit_exceeded',
+  ]) {
+    await assert.rejects(
+      requestJSON(
+        'https://example.invalid',
+        {},
+        {
+          fetchImpl: async () => ({
+            ok: false,
+            status: 429,
+            json: async () => ({ error: { code, message: 'Account limit' } }),
+          }),
+        },
+      ),
+      (error) => error.billingRequired === true && !error.retrySeconds && /billing/.test(error.message),
+    );
+  }
+});
 test('aborted session is classified as cancellation', async () => {
   const controller = new AbortController();
   controller.abort();

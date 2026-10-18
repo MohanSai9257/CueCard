@@ -478,7 +478,12 @@ ipcMain.handle('generate-cue', async (event, input) => {
   } catch (error) {
     return {
       ok: false,
-      error: { message: error.message, retrySeconds: error.retrySeconds, cancelled: error.cancelled },
+      error: {
+        message: error.message,
+        retrySeconds: error.retrySeconds,
+        billingRequired: error.billingRequired,
+        cancelled: error.cancelled,
+      },
     };
   } finally {
     if (activeAIRequest === controller) activeAIRequest = null;

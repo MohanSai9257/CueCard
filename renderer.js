@@ -81,6 +81,12 @@ let lastAudio = null;
 let retryAfter = 0;
 let retryRecording = null;
 let cooldownTimer = null;
+let questionRevision = 0;
+function newQuestion() {
+  questionRevision++;
+  retryRecording = null;
+  $('#answerNow').textContent = Date.now() < retryAfter ? 'Answer after cooldown' : 'Answer now';
+}
 let liveTranscription = null;
 let questionManuallyEdited = false;
 let transcriptionError = '';
@@ -431,7 +437,12 @@ function updateAudioControls() {
       onText: (text) => {
         if (sessionId !== activeSessionId || liveTranscription !== connection || !config) return;
         transcriptionError = '';
-        if (!questionManuallyEdited && historyIndex === history.length - 1) questionEl.value = text;
+        if (retryRecording && (typeof retryRecording !== 'string' || retryRecording.trim() !== text.trim()))
+          newQuestion();
+        if (!questionManuallyEdited && historyIndex === history.length - 1 && questionEl.value !== text) {
+          newQuestion();
+          questionEl.value = text;
+        }
       },
       onError: (message) => {
         if (sessionId !== activeSessionId || liveTranscription !== connection || !config) return;
@@ -516,6 +527,7 @@ function monitorVolume() {
   }
 
   if (rms > 0.008) {
+    if (retryRecording) newQuestion();
     if (!speechStartedAt) speechStartedAt = now;
   }
   // Audio stays local until Answer now is pressed. Pauses must not spend quota.
@@ -525,10 +537,14 @@ function monitorVolume() {
 
 function queueAudio(blob) {
   if (processing || Date.now() < retryAfter) return;
+  clearInterval(cooldownTimer);
+  retryAfter = 0;
   processAudio(blob);
 }
 
 async function processAudio(blob) {
+  const revision = questionRevision;
+  questionManuallyEdited = false;
   const sessionId = activeSessionId;
   const requestConfig = config;
   const current = () => activeSessionId === sessionId && config === requestConfig;
@@ -542,30 +558,45 @@ async function processAudio(blob) {
     const result = await requestCue({ ...input, system: systemPrompt(), sessionId });
     if (!current()) return;
 
-    if (result?.question && result?.answer) addAnswer(result);
-    else {
+    if (result?.question && result?.answer) {
+      const draft = questionEl.value;
+      const manuallyEdited = questionManuallyEdited;
+      addAnswer(result);
+      if (revision !== questionRevision) {
+        questionEl.value = draft;
+        questionManuallyEdited = manuallyEdited;
+      }
+    } else {
       answerEl.textContent = 'No complete question was detected. Ask a question and click Answer now.';
       setStatus('Listening');
     }
   } catch (error) {
     if (!current() || error.cancelled) return;
     if (error.retrySeconds) {
-      retryRecording = blob;
+      retryRecording = revision === questionRevision ? blob : null;
       retryAfter = Date.now() + error.retrySeconds * 1000;
       clearInterval(cooldownTimer);
       const update = () => {
         const seconds = Math.max(0, Math.ceil((retryAfter - Date.now()) / 1000));
-        questionEl.placeholder = 'Question saved — waiting for the provider quota.';
+        questionEl.placeholder = 'Type or ask your next question…';
         answerEl.textContent = seconds
-          ? `${window.CueProviders[requestConfig.provider].name}'s request limit was reached. Retry in ${seconds}s. Your question is saved; no automatic retries will be made.`
-          : 'You can retry now. Click Retry saved question; you do not need to repeat it.';
+          ? `${window.CueProviders[requestConfig.provider].name}'s temporary request limit was reached. Wait ${seconds}s. You can ask or type a new question now; it replaces the saved retry. No automatic retries will be made.`
+          : retryRecording
+            ? 'You can retry the saved question, or ask/type a new one to replace it.'
+            : 'Ready. Click Answer now for your latest question.';
         $('#answerNow').disabled = seconds > 0;
-        $('#answerNow').textContent = seconds ? `Retry in ${seconds}s` : 'Retry saved question';
+        $('#answerNow').textContent = seconds
+          ? `Wait ${seconds}s`
+          : retryRecording
+            ? 'Retry saved question'
+            : 'Answer now';
         if (!seconds) clearInterval(cooldownTimer);
       };
       update();
       cooldownTimer = setInterval(update, 1000);
     } else {
+      retryRecording = null;
+      $('#answerNow').textContent = 'Answer now';
       questionEl.placeholder = 'The request failed. You can retry your question.';
       answerEl.textContent = `Could not generate an answer: ${error.message}`;
     }
@@ -677,7 +708,7 @@ function forceAnswer() {
     return;
   }
   const typedQuestion = questionEl.value.trim();
-  if (typedQuestion && (questionManuallyEdited || !liveTranscription?.text?.trim())) {
+  if (typedQuestion && (questionManuallyEdited || (!speechStartedAt && !liveTranscription?.text?.trim()))) {
     queueAudio(typedQuestion);
     return;
   }
@@ -766,11 +797,17 @@ $('#micAudioToggle').addEventListener('click', toggleMicAudio);
 $('#answerNow').addEventListener('click', forceAnswer);
 $('#analyzeScreen').addEventListener('click', analyzeScreen);
 questionEl.addEventListener('input', () => {
+  newQuestion();
   questionManuallyEdited = true;
 });
 $('#clearQuestion').addEventListener('click', () => {
+  newQuestion();
   questionEl.value = '';
   questionManuallyEdited = false;
+  lastAudio = null;
+  speechStartedAt = 0;
+  chunks = [];
+  recorder?.reset();
   if (liveTranscription) {
     liveTranscription.text = '';
     liveTranscription.finalText = '';
