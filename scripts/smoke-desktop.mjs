@@ -85,8 +85,38 @@ try {
   )
     throw new Error(`Dock/menu-bar behavior failed: ${JSON.stringify(protection)}`);
   console.log(JSON.stringify({ captureProtection: protection }));
+  const privateMenus = (
+    await evaluate(
+      setup,
+      `(async () => {
+    const hiddenNative = [...document.querySelectorAll('select')].every(select => select.hidden && getComputedStyle(select).display === 'none');
+    document.querySelector('#provider-trigger').click();
+    const inWindow = !document.querySelector('#provider-menu').classList.contains('hidden') && document.querySelector('#provider-menu').ownerDocument === document;
+    document.querySelector('#provider-option-3').click();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const providerWorks = providerEl.value === 'openai' && modelEl.options.length === 2;
+    document.querySelector('#model-trigger').click();
+    document.querySelector('#model-option-0').click();
+    const modelWorks = modelEl.value === 'gpt-4.1-mini' && document.querySelector('#model-trigger').textContent.includes('Mini');
+    document.querySelector('#sessionType-trigger').click();
+    document.querySelector('#sessionType-option-2').click();
+    const sessionWorks = document.querySelector('#sessionType').value === 'mock';
+    document.querySelector('#provider-trigger').click();
+    document.querySelector('#provider-option-3').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+    const keyboardWorks = document.querySelector('#provider-trigger').getAttribute('aria-expanded') === 'false';
+    providerEl.value='gemini'; providerEl.dispatchEvent(new Event('change')); document.querySelector('#sessionType').value='interview'; window.refreshPrivateSelects();
+    const inlineValidation = collectConfig() === null && !!document.querySelector('#formError').textContent && document.querySelector('#setupForm').noValidate;
+    document.querySelector('#formError').textContent = '';
+    const noTooltips = document.querySelectorAll('[title]').length === 0;
+    return {hiddenNative, inWindow, providerWorks, modelWorks, sessionWorks, keyboardWorks, inlineValidation, noTooltips};
+  })()`,
+    )
+  ).result.value;
+  if (Object.values(privateMenus).some((value) => value !== true))
+    throw new Error('Private menus failed: ' + JSON.stringify(privateMenus));
+  console.log(JSON.stringify({ privateMenus }));
   let privacyProbe;
-  async function probePrivacy(mode) {
+  async function probePrivacy(mode, captureName = mode) {
     if (!process.argv.includes('--privacy-probe')) return;
     if (!privacyProbe) {
       privacyProbe = join(profile, 'privacy-probe');
@@ -100,13 +130,13 @@ try {
     const dimensions = (await evaluate(page, `[outerWidth,outerHeight]`)).result.value;
     const { stdout } = await execFileAsync(privacyProbe, [
       String(child.pid),
-      join(profile, `capture-${mode}.png`),
+      join(profile, `capture-${captureName}.png`),
       ...dimensions.map(String),
     ]);
     const result = JSON.parse(stdout);
     if (!result.nativeSharingStates?.length || result.nativeSharingStates.some((state) => state !== 0))
       throw new Error(`Native sharing protection not set: ${stdout}`);
-    console.log(JSON.stringify({ privacyProbe: mode, ...result }));
+    console.log(JSON.stringify({ privacyProbe: captureName, ...result }));
     if (mode === 'overlay') {
       await evaluate(
         overlay,
@@ -127,6 +157,13 @@ try {
     }
   }
   await probePrivacy('setup');
+  if (process.argv.includes('--privacy-probe')) {
+    for (const id of ['provider', 'model', 'sessionType']) {
+      await evaluate(setup, `document.querySelector('#${id}-trigger').click()`);
+      await probePrivacy('setup', `setup-${id}-open`);
+      await evaluate(setup, `document.querySelector('#${id}-trigger').click()`);
+    }
+  }
   await evaluate(
     setup,
     `Promise.all([window.cuecard.saveKey('gemini','smoke-test'),window.cuecard.saveKey('deepgram','smoke-test')])`,

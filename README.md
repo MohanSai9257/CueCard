@@ -55,6 +55,12 @@ Only enabled audio is sent to Deepgram for live transcription. The selected AI p
 
 ## Developer checks and local builds
 
+### Screen-sharing privacy audit
+
+Provider, model, and session-type dropdowns render as in-document listboxes, not native OS select popups. Native selects remain hidden form/data sources. Validation errors are inline; app hover-title tooltips, native spellcheck and context menus are disabled. Both app windows (including compact mode and settings/transcript views) request content protection before showing. These controls reduce extra unprotected UI surfaces; they do not override macOS capture limitations.
+
+Pause screen sharing before opening native file pickers, permission/Keychain dialogs, or external provider/billing websites. macOS application menus, privacy indicators and Activity Monitor remain OS-controlled. Sharing only a specific work/presentation window and checking the view from a second participant/device is the recommended approach. A successful local capture-protection flag check is not proof of invisibility in Teams, Zoom, Meet, or other ScreenCaptureKit clients.
+
 - `npm run check`: JavaScript syntax checks.
 - `npm run lint`: static error and unused-code checks.
 - `npm test`: isolated provider, audio, transcription, document parsing and vault regression tests; no real keys or billable requests.

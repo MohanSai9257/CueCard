@@ -51,6 +51,7 @@
       "preload.js",
       "renderer.js",
       "live-transcription.js",
+      "private-selects.js",
       "secure-store.js",
       "workspace.js",
       "workspace.css",

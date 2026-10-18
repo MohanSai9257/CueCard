@@ -140,6 +140,7 @@ function createWindows() {
     contextIsolation: true,
     nodeIntegration: false,
     sandbox: true,
+    spellcheck: false,
   };
   setupWindow = new BrowserWindow({
     title: 'CueCard',

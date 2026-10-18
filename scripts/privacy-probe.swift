@@ -56,7 +56,16 @@ if #available(macOS 14.0, *) {
             let image = try await SCScreenshotManager.captureImage(contentFilter: SCContentFilter(desktopIndependentWindow: window), configuration: config)
             let representation = NSBitmapImageRep(cgImage: image)
             try representation.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: outputPath))
-            emit(["nativeSharingStates": sharingStates, "listedByScreenCaptureKit": true, "capturedByScreenCaptureKit": true, "screenshot": outputPath])
+            var visiblePixels = 0
+            var testedPixels = 0
+            for y in stride(from: 24, to: image.height - 12, by: 16) {
+                for x in stride(from: 24, to: image.width - 12, by: 16) {
+                    guard let color = representation.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB) else { continue }
+                    testedPixels += 1
+                    if color.alphaComponent > 0.1 && max(color.redComponent, max(color.greenComponent, color.blueComponent)) > 0.15 { visiblePixels += 1 }
+                }
+            }
+            emit(["nativeSharingStates": sharingStates, "listedByScreenCaptureKit": true, "capturedByScreenCaptureKit": true, "visibleContentFraction": Double(visiblePixels) / Double(max(1, testedPixels)), "screenshot": outputPath])
             exit(0)
         } catch {
             emit(["nativeSharingStates": sharingStates, "captureError": error.localizedDescription])

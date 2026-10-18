@@ -163,7 +163,16 @@ async function pickResume() {
 
 function collectConfig() {
   const form = $('#setupForm');
-  if (!form.reportValidity()) return null;
+  if (!form.checkValidity()) {
+    const invalid = form.querySelector(':invalid');
+    $('#formError').textContent =
+      invalid?.id === 'responsibleUse'
+        ? 'Confirm that assistance is permitted before starting.'
+        : 'Complete the provider, model, role, company, and job description before starting.';
+    const target = invalid?.hidden ? document.getElementById(`${invalid.id}-trigger`) : invalid;
+    target?.focus();
+    return null;
+  }
   if (!resume) {
     $('#formError').textContent = 'Please attach your résumé as a PDF or DOCX file.';
     return null;
@@ -897,6 +906,7 @@ async function restoreSavedSession(id) {
   for (const field of ['role', 'company', 'jobDescription', 'instructions'])
     $('#' + field).value = saved[field] || '';
   $('#sessionType').value = saved.sessionType || 'interview';
+  window.refreshPrivateSelects();
   resume = saved.resumeText ? { name: saved.resumeName || 'Saved résumé', text: saved.resumeText } : null;
   $('#resumeStatus').textContent = resume
     ? `${resume.name} · ${resume.text.length.toLocaleString()} characters ready`
