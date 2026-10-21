@@ -74,6 +74,10 @@ let nativeAudioProcess = null;
 // Apply before any CueCard window is shown, including future windows and dialogs
 // implemented as BrowserWindows. The compact horse uses the same protected overlay.
 app.on('browser-window-created', (_, window) => {
+  if (process.platform === 'win32') {
+    window.setSkipTaskbar(true);
+    window.on('show', () => window.setSkipTaskbar(true));
+  }
   if (!['darwin', 'win32'].includes(process.platform)) return;
   window.setContentProtection(true);
   window.on('show', () => window.setContentProtection(true));
@@ -144,6 +148,7 @@ function createWindows() {
   };
   setupWindow = new BrowserWindow({
     title: 'CueCard',
+    skipTaskbar: process.platform === 'win32',
     width: 1240,
     height: 900,
     minWidth: 850,
@@ -160,6 +165,7 @@ function createWindows() {
   const { width } = screen.getPrimaryDisplay().workAreaSize;
   overlayWindow = new BrowserWindow({
     title: 'CueCard — Live session',
+    skipTaskbar: process.platform === 'win32',
     width: 520,
     height: 760,
     minWidth: 420,
