@@ -1,6 +1,56 @@
 (() => {
   if (new URLSearchParams(location.search).has('overlay')) return;
   const find = (selector) => document.querySelector(selector);
+  const controls = find('.traffic-lights');
+  const desktopDrag = find('.desktop-drag');
+  let windowsTitlebar;
+  function configureWindowControls(platform = window.cuecard.platform) {
+    const windows = platform === 'win32';
+    document.body.classList.toggle('windows-desktop', windows);
+    const close = find('#desktopClose');
+    const minimize = find('#desktopMinimize');
+    const maximize = find('#desktopMaximize');
+    if (windows) {
+      if (!windowsTitlebar) {
+        windowsTitlebar = document.createElement('div');
+        windowsTitlebar.className = 'windows-titlebar';
+        const name = document.createElement('span');
+        name.textContent = 'CueCard';
+        windowsTitlebar.append(name);
+        document.querySelector('main').before(windowsTitlebar);
+        windowsTitlebar.addEventListener('dblclick', (event) => {
+          if (!event.target.closest('button')) window.cuecard.maximize();
+        });
+      }
+      controls.setAttribute('aria-label', 'Window controls');
+      controls.setAttribute('role', 'group');
+      windowsTitlebar.append(controls);
+      controls.append(minimize, maximize, close);
+      minimize.innerHTML = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M1 6.5h10"/></svg>';
+      maximize.innerHTML =
+        '<svg class="maximize-icon" viewBox="0 0 12 12" aria-hidden="true"><rect x="1.5" y="1.5" width="9" height="9"/></svg><svg class="restore-icon" viewBox="0 0 12 12" aria-hidden="true"><path d="M3.5 3.5v-2h7v7h-2"/><rect x="1.5" y="3.5" width="7" height="7"/></svg>';
+      close.innerHTML = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="m1.5 1.5 9 9m0-9-9 9"/></svg>';
+      close.setAttribute('aria-label', 'Close CueCard');
+      maximize.setAttribute(
+        'aria-label',
+        controls.classList.contains('is-maximized') ? 'Restore CueCard' : 'Maximize CueCard',
+      );
+    } else {
+      desktopDrag.append(controls);
+      controls.append(close, minimize, maximize);
+      for (const button of [close, minimize, maximize]) button.replaceChildren();
+      close.setAttribute('aria-label', 'Quit CueCard');
+      maximize.setAttribute('aria-label', 'Resize CueCard');
+      windowsTitlebar?.remove();
+      windowsTitlebar = null;
+    }
+  }
+  configureWindowControls();
+  window.cuecard.onMaximized((maximized) => {
+    controls.classList.toggle('is-maximized', maximized);
+    if (document.body.classList.contains('windows-desktop'))
+      find('#desktopMaximize').setAttribute('aria-label', maximized ? 'Restore CueCard' : 'Maximize CueCard');
+  });
   const providers = window.CueProviders;
   let statuses = {};
   let sessions = [];
@@ -336,6 +386,6 @@
       delete input.dataset.revealed;
     });
   });
-  window.cueWorkspace = { refreshKeys, showPage };
+  window.cueWorkspace = { refreshKeys, showPage, configureWindowControls };
   refreshKeys();
 })();

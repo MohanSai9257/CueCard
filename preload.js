@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('cuecard', {
   close: () => ipcRenderer.send('win-close'),
   minimize: () => ipcRenderer.send('win-minimize'),
   maximize: () => ipcRenderer.send('win-maximize'),
+  onMaximized: (callback) => ipcRenderer.on('window-maximized', (_, maximized) => callback(maximized)),
   toggleCompact: () => ipcRenderer.invoke('toggle-compact'),
   moveCompact: (dx, dy) => ipcRenderer.send('move-compact', dx, dy),
   captureScreen: () => ipcRenderer.invoke('capture-screen'),

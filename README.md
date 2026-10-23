@@ -4,6 +4,8 @@ CueCard is a local Mac and Windows desktop app for live transcription and contex
 
 ## Run locally
 
+The Windows setup workspace uses a top-right caption bar with minimize, maximize/restore, and close controls. Close has a red hover state. Mac keeps the left-side traffic-light controls. The floating assistant's existing controls and audio behavior are unchanged. Windows users must rebuild and reinstall the Windows installer after pulling UI changes; a source pull does not update an already-installed app.
+
 For copy-and-paste local setup prompts for **macOS and Windows**, see [SETUP-PROMPTS.md](SETUP-PROMPTS.md). Each person uses their own provider keys and, on Mac, their own local signing certificate.
 
 Install [Node.js 24 or newer](https://nodejs.org/en/download) and npm, then open a terminal in this repository:

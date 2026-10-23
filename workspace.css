@@ -58,6 +58,67 @@ body:not(.overlay-shell) .setup-view {
   margin: 4px 5px 22px;
   -webkit-app-region: drag;
 }
+.windows-titlebar {
+  position: fixed;
+  inset: 0 0 auto;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 12px;
+  background: #071221;
+  color: #dce6f5;
+  font-size: 11px;
+  z-index: 100;
+  -webkit-app-region: drag;
+}
+body.windows-desktop:not(.overlay-shell) > main {
+  margin-top: 32px;
+  height: calc(100vh - 32px);
+}
+.windows-desktop .desktop-drag {
+  display: none;
+}
+.windows-desktop .traffic-lights {
+  gap: 0;
+  padding: 0;
+  height: 32px;
+}
+.windows-desktop .traffic-lights button {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 32px;
+  border-radius: 0;
+  background: transparent;
+  color: #dce6f5;
+  cursor: default;
+}
+.windows-desktop .traffic-lights button:hover {
+  background: #ffffff18;
+}
+.windows-desktop .traffic-lights #desktopClose:hover {
+  background: #c42b1c;
+  color: white;
+}
+.windows-desktop .traffic-lights button:focus-visible {
+  outline: 2px solid #7ba7ff;
+  outline-offset: -3px;
+}
+.windows-desktop .traffic-lights svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
+}
+.windows-desktop .traffic-lights .restore-icon,
+.windows-desktop .traffic-lights.is-maximized .maximize-icon {
+  display: none;
+}
+.windows-desktop .traffic-lights.is-maximized .restore-icon {
+  display: block;
+}
 .sidebar-brand img {
   width: 40px;
   height: 40px;

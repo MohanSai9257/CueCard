@@ -160,6 +160,8 @@ function createWindows() {
     webPreferences,
   });
   setupWindow.loadFile('index.html');
+  setupWindow.on('maximize', () => setupWindow.webContents.send('window-maximized', true));
+  setupWindow.on('unmaximize', () => setupWindow.webContents.send('window-maximized', false));
   setupWindow.once('ready-to-show', showSetup);
   configureWindow(setupWindow);
   const { width } = screen.getPrimaryDisplay().workAreaSize;

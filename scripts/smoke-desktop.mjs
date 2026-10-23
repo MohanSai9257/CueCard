@@ -85,6 +85,83 @@ try {
   )
     throw new Error(`Dock/menu-bar behavior failed: ${JSON.stringify(protection)}`);
   console.log(JSON.stringify({ captureProtection: protection }));
+  const windowControls = (
+    await evaluate(
+      setup,
+      `(() => {
+    const controls = document.querySelector('.traffic-lights');
+    window.cueWorkspace.configureWindowControls('win32');
+    const close = document.querySelector('#desktopClose');
+    const box = close.getBoundingClientRect();
+    const result = {
+      order: [...controls.children].map(button => button.id).join(','),
+      topRight: box.top === 0 && box.right === innerWidth,
+      rectangular: box.width === 46 && box.height === 32 && getComputedStyle(close).borderRadius === '0px',
+      icons: controls.querySelectorAll('svg').length === 4,
+      noTooltips: !controls.querySelector('[title]'),
+      oneSet: document.querySelectorAll('#desktopClose').length === 1,
+    };
+    return result;
+  })()`,
+    )
+  ).result.value;
+  if (
+    windowControls.order !== 'desktopMinimize,desktopMaximize,desktopClose' ||
+    Object.entries(windowControls).some(([key, value]) => key !== 'order' && value !== true)
+  )
+    throw new Error('Windows controls failed: ' + JSON.stringify(windowControls));
+  await setup('DOM.enable');
+  await setup('CSS.enable');
+  const doc = await setup('DOM.getDocument');
+  const closeNode = await setup('DOM.querySelector', { nodeId: doc.root.nodeId, selector: '#desktopClose' });
+  await setup('CSS.forcePseudoState', { nodeId: closeNode.nodeId, forcedPseudoClasses: ['hover'] });
+  const hover = (
+    await evaluate(setup, `getComputedStyle(document.querySelector('#desktopClose')).backgroundColor`)
+  ).result.value;
+  if (hover !== 'rgb(196, 43, 28)') throw new Error('Windows close hover is not red: ' + hover);
+  const windowsShot = await setup('Page.captureScreenshot', { format: 'png' });
+  await writeFile(join(profile, 'windows-controls.png'), Buffer.from(windowsShot.data, 'base64'));
+  await setup('CSS.forcePseudoState', { nodeId: closeNode.nodeId, forcedPseudoClasses: [] });
+  await evaluate(setup, `document.querySelector('#desktopMaximize').click()`);
+  await pause(300);
+  const maximized = (
+    await evaluate(
+      setup,
+      `document.querySelector('#desktopMaximize').getAttribute('aria-label') === 'Restore CueCard'`,
+    )
+  ).result.value;
+  await evaluate(setup, `document.querySelector('#desktopMaximize').click()`);
+  await pause(300);
+  const maximizeRestored = (
+    await evaluate(
+      setup,
+      `document.querySelector('#desktopMaximize').getAttribute('aria-label') === 'Maximize CueCard'`,
+    )
+  ).result.value;
+  if (!maximized || !maximizeRestored) throw new Error('Maximize/restore state did not update.');
+  const macControls = (
+    await evaluate(
+      setup,
+      `(() => {
+    window.cueWorkspace.configureWindowControls('darwin');
+    const button=document.querySelector('#desktopClose');
+    const mac = getComputedStyle(button).width === '12px' && getComputedStyle(button).borderRadius === '50%' && !document.querySelector('.windows-titlebar');
+    window.cueWorkspace.configureWindowControls();
+    return mac;
+  })()`,
+    )
+  ).result.value;
+  if (!macControls) throw new Error('Mac traffic lights changed.');
+  console.log(
+    JSON.stringify({
+      windowControls,
+      hover,
+      maximized,
+      maximizeRestored,
+      macControls,
+      screenshot: join(profile, 'windows-controls.png'),
+    }),
+  );
   const privateMenus = (
     await evaluate(
       setup,
@@ -539,6 +616,20 @@ try {
   await pause(200);
   const stopped = (await evaluate(overlay, `stream === null && recorder === null`)).result.value;
   if (!stopped) throw new Error('Settings did not stop capture.');
+  const closeExit = new Promise((resolve) => child.once('exit', (code) => resolve(code)));
+  await evaluate(setup, `setTimeout(() => document.querySelector('#desktopClose').click(), 100)`);
+  let closeTimer;
+  try {
+    const code = await Promise.race([
+      closeExit,
+      new Promise((_, reject) => {
+        closeTimer = setTimeout(() => reject(new Error('Close button did not quit CueCard.')), 4000);
+      }),
+    ]);
+    if (code !== 0) throw new Error('Close button exited with code ' + code);
+  } finally {
+    clearTimeout(closeTimer);
+  }
   console.log(
     JSON.stringify({
       passed: true,
